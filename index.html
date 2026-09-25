@@ -3,285 +3,834 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>АдалинКонсалт — кабинет</title>
+<title>АдалинКонсалт — CRM</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root {
-    --bg: var(--tg-theme-bg-color, #ffffff);
-    --bg2: var(--tg-theme-secondary-bg-color, #f2f3f5);
-    --text: var(--tg-theme-text-color, #1f2328);
-    --hint: var(--tg-theme-hint-color, #7b8189);
-    --link: var(--tg-theme-link-color, #1f4e5f);
-    --btn: var(--tg-theme-button-color, #1f4e5f);
-    --btn-text: var(--tg-theme-button-text-color, #ffffff);
-    --danger: #c0392b; --warn: #b7791f; --ok: #2f855a;
-    --line: color-mix(in srgb, var(--hint) 25%, transparent);
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg2); color: var(--text); }
-  header { background: var(--bg); padding: 12px 16px 8px; position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--line); }
-  h1 { font-size: 17px; margin: 0 0 2px; }
-  .sub { color: var(--hint); font-size: 13px; }
-  .test { background: #fff4d6; color: #7a5a00; font-size: 12px; padding: 6px 16px; }
-  select, input, textarea { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
-  textarea { min-height: 70px; resize: vertical; }
-  .as { margin-top: 8px; }
-  nav { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; }
-  nav button { flex: 0 0 auto; border: 0; background: var(--bg2); color: var(--text); padding: 7px 12px; border-radius: 16px; font: inherit; font-size: 14px; }
-  nav button.on { background: var(--btn); color: var(--btn-text); }
-  main { padding: 12px 12px 90px; }
-  .sec { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--hint); margin: 16px 4px 6px; }
-  .card { background: var(--bg); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
-  .card.tap { cursor: pointer; }
-  .row { display: flex; justify-content: space-between; gap: 4px 10px; align-items: baseline; flex-wrap: wrap; }
-  .row > span:last-child { white-space: nowrap; }
-  .t { font-weight: 600; }
-  .muted { color: var(--hint); font-size: 13px; }
-  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--bg2); color: var(--hint); white-space: nowrap; }
-  .b-over { background: #fde8e6; color: var(--danger); }
-  .b-wait { background: #fff4d6; color: var(--warn); }
-  .b-done { background: #e6f4ec; color: var(--ok); }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-  .chips button { border: 1px solid var(--line); background: var(--bg); color: var(--text); padding: 5px 10px; border-radius: 14px; font: inherit; font-size: 13px; }
-  .chips button.on { border-color: var(--btn); color: var(--btn); font-weight: 600; }
-  .empty { text-align: center; color: var(--hint); padding: 30px 10px; }
-  .err { background: #fde8e6; color: var(--danger); border-radius: 10px; padding: 12px; margin: 12px; }
-  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 20; }
-  .sheet.open { display: flex; align-items: flex-end; }
-  .panel { background: var(--bg); width: 100%; max-height: 92vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 16px 16px 28px; }
-  .panel h2 { font-size: 17px; margin: 0 0 4px; }
-  label { display: block; font-size: 13px; color: var(--hint); margin: 12px 0 4px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .seg { display: flex; gap: 4px; background: var(--bg2); padding: 3px; border-radius: 10px; }
-  .seg button { flex: 1; border: 0; background: transparent; color: var(--text); padding: 7px 4px; border-radius: 8px; font: inherit; font-size: 13px; }
-  .seg button.on { background: var(--bg); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  .btn { display: block; width: 100%; border: 0; border-radius: 10px; padding: 12px; font: inherit; font-weight: 600; background: var(--btn); color: var(--btn-text); margin-top: 14px; }
-  .btn.sec2 { background: var(--bg2); color: var(--text); }
-  .box { background: var(--bg2); border-radius: 10px; padding: 10px 12px; margin-top: 12px; }
-  .kv { display: grid; grid-template-columns: 45% 55%; gap: 4px 8px; font-size: 14px; }
-  .kv div:nth-child(odd) { color: var(--hint); }
-  .sum { font-weight: 600; white-space: nowrap; }
-  .loading { text-align: center; padding: 40px; color: var(--hint); }
+:root {
+  --bg: #f4f5f2; --panel: #ffffff; --line: #e3e4de; --line2: #cfd1c8;
+  --text: #1c2230; --muted: #687080; --muted2: #8b919c;
+  --accent: #27466e; --accent-2: #1b3354; --accent-weak: #e8eef6;
+  --danger: #b42318; --danger-weak: #fdecea; --warn: #9a5b00; --warn-weak: #fdf3dc;
+  --ok: #1e7a4c; --ok-weak: #e5f4ec; --radius: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); }
+.hidden { display: none !important; }
+
+/* ---------- каркас ---------- */
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; }
+.logo { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+.brand b { display: block; font-size: 14px; } .brand span { font-size: 12px; color: var(--muted); }
+.nav { padding: 6px 10px; overflow-y: auto; flex: 1; }
+.nav-sec { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted2); margin: 14px 10px 6px; }
+.nav button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: none; text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--text); }
+.nav button:hover { background: #f1f2ee; }
+.nav button.on { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+.nav button[disabled] { color: var(--muted2); cursor: default; background: none; }
+.nav .cnt { font-size: 11px; background: var(--danger-weak); color: var(--danger); border-radius: 10px; padding: 1px 7px; font-weight: 600; }
+.nav .soon { font-size: 10px; color: var(--muted2); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; }
+.side-foot { border-top: 1px solid var(--line); padding: 12px 14px; font-size: 13px; }
+.who { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.ava { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-weak); color: var(--accent); display: grid; place-items: center; font-weight: 700; flex: none; }
+.who b { display: block; } .who span { color: var(--muted); font-size: 12px; }
+.side-foot select { width: 100%; margin: 4px 0 8px; }
+.linkbtn { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 2px 0; margin-right: 12px; font-size: 13px; }
+.main { min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 4; }
+.top h2 { margin: 0; font-size: 17px; }
+.top .right { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.pill { font-size: 12px; border-radius: 12px; padding: 2px 10px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+.pill.warn { background: var(--warn-weak); color: var(--warn); border-color: #f1dfb2; }
+.content { padding: 22px 28px 60px; max-width: 1320px; }
+.testbar { background: var(--warn-weak); color: var(--warn); font-size: 12px; padding: 6px 28px; border-bottom: 1px solid #f1dfb2; }
+.viewbar { background: var(--accent-weak); color: var(--accent); font-size: 12px; padding: 6px 28px; }
+
+/* ---------- элементы ---------- */
+.over { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.over::before { content: ""; width: 18px; height: 2px; background: var(--accent); }
+h1.hero { font-size: 26px; margin: 6px 0 4px; letter-spacing: -.01em; }
+.lead { color: var(--muted); margin: 0 0 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.pad { padding: 16px 18px; }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
+.kpi { padding: 14px 16px; }
+.kpi .l { font-size: 12px; color: var(--muted); } .kpi .v { font-size: 26px; font-weight: 650; margin-top: 4px; letter-spacing: -.01em; }
+.kpi .s { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+.kpi.red .v { color: var(--danger); } .kpi.amber .v { color: var(--warn); }
+.minis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+.mini { padding: 10px 14px; } .mini .l { font-size: 12px; color: var(--muted); } .mini .v { font-size: 18px; font-weight: 600; }
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.ph { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.ph h3 { margin: 0; font-size: 15px; } .ph span { color: var(--muted); font-size: 12px; }
+.attn { list-style: none; margin: 8px 0 0; padding: 0; }
+.attn li { display: flex; align-items: center; gap: 10px; padding: 11px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+.attn li:hover { background: #fafaf8; }
+.attn .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.attn .t { flex: 1; } .attn .t small { display: block; color: var(--muted); font-size: 12px; }
+.attn .n { font-weight: 650; font-size: 16px; }
+.bar { height: 8px; background: #eceee8; border-radius: 5px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+.prog { display: grid; grid-template-columns: 1.3fr 2fr 70px; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.prog:first-of-type { border-top: 0; }
+.prog .r { text-align: right; color: var(--muted); font-size: 13px; }
+
+table.tbl { width: 100%; border-collapse: collapse; }
+.tbl th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; background: #fafaf8; }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr.click { cursor: pointer; } .tbl tr.click:hover td { background: #fafaf8; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl .sub { color: var(--muted); font-size: 12px; }
+.tbl .num { text-align: right; white-space: nowrap; }
+.tbl td.nm { min-width: 150px; }
+.twrap { overflow-x: auto; }
+.acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 190px; }
+.badge { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 10px; background: #eff0ec; color: var(--muted); white-space: nowrap; }
+.b-over { background: var(--danger-weak); color: var(--danger); } .b-wait { background: var(--warn-weak); color: var(--warn); }
+.b-done { background: var(--ok-weak); color: var(--ok); } .b-work { background: var(--accent-weak); color: var(--accent); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.toolbar .grow { flex: 1; }
+input[type=text], input[type=password], select, textarea { border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; background: #fff; min-width: 0; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-weak); border-color: var(--accent); }
+textarea { width: 100%; min-height: 80px; resize: vertical; }
+.chips { display: inline-flex; background: #eceee8; border-radius: 9px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.chips button { border: 0; background: none; padding: 6px 11px; border-radius: 7px; cursor: pointer; color: var(--muted); font-size: 13px; }
+.chips button.on { background: #fff; color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.btn:hover { background: var(--accent-2); }
+.btn.ghost { background: #fff; color: var(--accent); border-color: var(--line2); }
+.btn.ghost:hover { background: var(--accent-weak); }
+.btn.danger { background: #fff; color: var(--danger); border-color: #f0c9c4; }
+.btn.sm { padding: 5px 10px; font-size: 13px; font-weight: 500; }
+.btn[disabled] { opacity: .6; cursor: wait; }
+.empty { text-align: center; color: var(--muted); padding: 36px 12px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.kv { display: grid; grid-template-columns: 200px 1fr; gap: 7px 16px; }
+.kv > div:nth-child(odd) { color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 12px 0 16px; }
+.stats div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; } .stats b { display: block; font-size: 18px; } .stats span { font-size: 12px; color: var(--muted); }
+.tabs2 { display: flex; gap: 18px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs2 button { border: 0; background: none; padding: 8px 0; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs2 button.on { color: var(--text); border-color: var(--accent); font-weight: 600; }
+.steps { margin: 6px 0 0; padding-left: 22px; } .steps li { margin: 5px 0; }
+.note { background: #fafaf8; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--muted); }
+.regs { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.reglist .grp { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted2); padding: 12px 14px 4px; }
+.reglist button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 14px; cursor: pointer; border-left: 2px solid transparent; }
+.reglist button:hover { background: #fafaf8; } .reglist button.on { background: var(--accent-weak); border-left-color: var(--accent); }
+.reglist button small { display: block; color: var(--muted2); font-size: 12px; }
+
+/* ---------- боковая панель и окна ---------- */
+.shade { position: fixed; inset: 0; background: rgba(20,25,35,.32); z-index: 20; display: none; }
+.shade.open { display: block; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); background: var(--panel); z-index: 21; box-shadow: -8px 0 30px rgba(0,0,0,.12); transform: translateX(105%); transition: transform .18s ease; display: flex; flex-direction: column; }
+.drawer.open { transform: none; }
+.drawer.wide { width: min(860px, 100%); }
+.dh { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.dh h3 { margin: 0 0 3px; font-size: 16px; }
+.x { border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0 4px; }
+.db { padding: 16px 20px 30px; overflow-y: auto; flex: 1; }
+.db label, .modal label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+.db input[type=text], .db select, .modal input, .modal select { width: 100%; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.box { background: #fafaf8; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 16px; }
+.box h4 { margin: 0 0 2px; font-size: 14px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto; background: var(--panel); border-radius: 12px; z-index: 31; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+.modal h3 { margin: 0 0 6px; }
+.modal-shade { position: fixed; inset: 0; background: rgba(20,25,35,.4); z-index: 30; }
+.copyrow { display: flex; gap: 6px; } .copyrow input { flex: 1; font-family: ui-monospace, Consolas, monospace; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1c2230; color: #fff; padding: 10px 16px; border-radius: 8px; z-index: 40; font-size: 13px; max-width: calc(100% - 32px); }
+.toast.err { background: var(--danger); }
+.loading { padding: 60px; text-align: center; color: var(--muted); }
+
+/* ---------- вход ---------- */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.login .card { width: min(380px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+.login h1 { font-size: 20px; margin: 14px 0 4px; }
+.login label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 4px; }
+.login input { width: 100%; padding: 10px 12px; }
+.login .btn { width: 100%; margin-top: 18px; padding: 10px; }
+.login .err { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+/* ---------- телефон ---------- */
+.mnav { display: none; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .side .nav, .side-foot .who span { display: none; }
+  .brand { padding: 12px 16px; }
+  .side-foot { padding: 8px 16px; border-top: 0; }
+  .side-foot .who { display: none; }
+  .mnav { display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  .mnav button { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 6px 12px; cursor: pointer; }
+  .mnav button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .top { padding: 12px 16px; position: static; } .content { padding: 16px 16px 50px; }
+  .testbar, .viewbar { padding: 6px 16px; }
+  .kpis, .minis { grid-template-columns: 1fr 1fr; }
+  .cols, .regs { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .kv { grid-template-columns: 1fr; gap: 0; } .kv > div:nth-child(even) { margin-bottom: 8px; }
+  h1.hero { font-size: 21px; }
+  .tbl thead { display: none; }
+  .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
+  .tbl tr { border-bottom: 1px solid var(--line); padding: 8px 4px; }
+  .tbl td { border: 0; padding: 2px 8px; }
+  .tbl td[data-l]::before { content: attr(data-l) ": "; color: var(--muted); font-size: 12px; }
+  .tbl .num { text-align: left; } .tbl td.nm { min-width: 0; } .acts { justify-content: flex-start; margin-top: 6px; }
+  .prog { grid-template-columns: 1fr 70px; } .prog .bar { grid-column: 1 / -1; order: 3; }
+  .g2 { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
-<header>
-  <h1 id="title">АдалинКонсалт</h1>
-  <div class="sub" id="subtitle">Загрузка…</div>
-  <div class="as" id="asBox" style="display:none"><select id="asSel"></select></div>
-  <nav id="tabs"></nav>
-</header>
-<div class="test" id="testBar" style="display:none">Тестовый режим: сообщения клиентам уходят только руководителю.</div>
-<main id="main"><div class="loading">Загрузка…</div></main>
-<div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
-
+<div id="root"><div class="loading">Загрузка…</div></div>
+<div class="shade" id="shade"></div>
+<aside class="drawer" id="drawer"></aside>
+<div id="modalWrap"></div>
 <script>
-const tg = window.Telegram && window.Telegram.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
-const API = new URLSearchParams(location.search).get('api');
-const S = { data: null, as: null, tab: null, filter: 'open', emp: '' };
+'use strict';
+// ===================== связь с сервером =====================
+const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData ? window.Telegram.WebApp : null;
+if (tg) { try { tg.ready(); tg.expand(); } catch (e) { /* не в Telegram */ } }
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* хранилище недоступно */ } },
+};
+const qsApi = new URLSearchParams(location.search).get('api');
+if (qsApi) store.set('adalin_api', qsApi);
+const API = qsApi || store.get('adalin_api') || '';
+const S = { token: store.get('adalin_token'), data: null, as: null, view: null, drawer: null,
+  f: { q: '', emp: '', client: '', period: '', st: 'open' }, regSel: null, regQ: '', progPeriod: '' };
+
 const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const money = v => (v === '' || v == null) ? '' : Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ /g, ' ');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const low = s => String(s == null ? '' : s).trim().toLowerCase();
+const parseD = s => { const m = String(s || '').match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
 
 async function call(action, params) {
-  if (!API) throw new Error('Не указан адрес сервера. Откройте кабинет кнопкой в боте.');
-  if (!tg || !tg.initData) throw new Error('Откройте кабинет из Telegram — кнопкой «Кабинет» в боте.');
-  const body = JSON.stringify({ initData: tg.initData, action, params: Object.assign({}, params, S.as ? { as: S.as } : {}) });
-  const r = await fetch(API, { method: 'POST', body, redirect: 'follow' });
-  const j = await r.json();
+  if (!API) throw new Error('Не указан адрес сервера. Откройте ссылку, которую прислал руководитель (она содержит «?api=…»).');
+  const body = { action, params: Object.assign({}, params || {}, S.as && action !== 'login' ? { as: S.as } : {}) };
+  if (S.token) body.token = S.token; else if (tg) body.initData = tg.initData;
+  let j;
+  try {
+    const r = await fetch(API, { method: 'POST', body: JSON.stringify(body), redirect: 'follow' });
+    j = await r.json();
+  } catch (e) { throw new Error('Сервер не отвечает. Проверьте интернет и попробуйте ещё раз.'); }
+  if (!j.ok && j.auth) { logoutLocal(); const e = new Error(S.data === null && action === 'me' ? '' : (j.error || 'Войдите снова.')); e.auth = true; throw e; }
   if (!j.ok) throw new Error(j.error || 'Ошибка сервера');
   return j;
 }
-async function load(action = 'me', params = {}) {
+async function act(action, params, btn) {
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняю…'; }
   try {
-    S.data = await call(action, params);
-    render();
-    return true;
+    const j = await call(action, params);
+    if (j.mustChange) { S.data = null; renderPassword(true); return null; }
+    S.data = j; render(); return j;
+  } catch (e) { if (e.auth) { renderLogin(e.message || 'Сессия истекла. Войдите снова.'); return null; } toast(e.message, true); return null; }
+  finally { if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = old; } }
+}
+function toast(msg, err) {
+  const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), err ? 5000 : 2500);
+}
+function logoutLocal() { S.token = null; S.data = null; S.as = null; store.set('adalin_token', null); }
+
+// ===================== вход и пароль =====================
+function renderLogin(msg) {
+  closeDrawer();
+  $('root').innerHTML = `<div class="login"><form class="card" id="lf" autocomplete="on">
+    <div class="brand" style="padding:0"><div class="logo">А</div><div><b>АдалинКонсалт</b><span>CRM</span></div></div>
+    <h1>Вход в систему</h1><div class="muted small">Для сотрудников и клиентов компании</div>
+    <label for="lg">Логин</label><input type="text" id="lg" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+    <label for="pw">Пароль</label><input type="password" id="pw" autocomplete="current-password" required>
+    <button class="btn" id="lb">Войти</button>
+    <div class="err" id="le">${esc(msg || '')}</div>
+    <div class="muted small" style="margin-top:6px">Логин и временный пароль выдаёт руководитель. Забыли пароль — обратитесь к нему, он выдаст новый.</div>
+  </form></div>`;
+  $('lg').focus();
+  $('lf').onsubmit = async e => {
+    e.preventDefault();
+    $('lb').disabled = true; $('le').textContent = '';
+    try {
+      const j = await call('login', { login: $('lg').value, password: $('pw').value });
+      S.token = j.token; store.set('adalin_token', j.token);
+      if (j.mustChange) renderPassword(true); else await start();
+    } catch (err) { $('le').textContent = err.message; $('lb').disabled = false; }
+  };
+}
+function renderPassword(first) {
+  const html = `<form class="card" id="pf">
+    <div class="brand" style="padding:0"><div class="logo">А</div><div><b>АдалинКонсалт</b><span>CRM</span></div></div>
+    <h1>${first ? 'Придумайте свой пароль' : 'Смена пароля'}</h1>
+    <div class="muted small">${first ? 'Временный пароль больше не понадобится. ' : ''}Не короче 8 символов, буквы и цифры.</div>
+    ${first ? '' : '<label>Текущий пароль</label><input type="password" id="po" autocomplete="current-password" required>'}
+    <label>Новый пароль</label><input type="password" id="p1" autocomplete="new-password" required>
+    <label>Повторите новый пароль</label><input type="password" id="p2" autocomplete="new-password" required>
+    <button class="btn" id="pb">Сохранить пароль</button>
+    ${first ? '' : '<button type="button" class="btn ghost" id="pc" style="margin-top:8px">Отмена</button>'}
+    <div class="err" id="pe"></div></form>`;
+  if (first) { $('root').innerHTML = '<div class="login">' + html + '</div>'; }
+  else openModal(html.replace('class="card"', 'class=""'));
+  if ($('pc')) $('pc').onclick = closeModal;
+  $('pf').onsubmit = async e => {
+    e.preventDefault();
+    if ($('p1').value !== $('p2').value) { $('pe').textContent = 'Пароли не совпадают.'; return; }
+    $('pb').disabled = true;
+    try {
+      await call('password.change', { password: $('p1').value, old: $('po') ? $('po').value : '' });
+      closeModal(); toast('Пароль изменён'); if (first) await start();
+    } catch (err) { $('pe').textContent = err.message; $('pb').disabled = false; }
+  };
+}
+
+// ===================== запуск =====================
+async function start() {
+  if (!tg && !S.token) return renderLogin();
+  $('root').innerHTML = '<div class="loading">Загрузка…</div>';
+  try {
+    const j = await call('me');
+    if (j.mustChange) return renderPassword(true);
+    S.data = j; render();
   } catch (e) {
-    showError(e.message);
-    return false;
+    if (e.auth) renderLogin(e.message);
+    else $('root').innerHTML = `<div class="login"><div class="card"><b>Не удалось загрузить данные</b><p class="muted">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Обновить</button></div></div>`;
   }
 }
-function showError(msg) {
-  if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
-  if (!S.data) $('main').innerHTML = '<div class="err">' + esc(msg) + '</div>';
-}
 
-// ---------- шапка ----------
+// ===================== меню по ролям =====================
+function navFor(d) {
+  const openReq = (d.requests || []).length;
+  const over = (d.tasks || []).filter(t => t.overdue).length;
+  if (d.role === 'клиент') return [
+    { sec: null, items: [['deadlines', 'Сроки платежей'], ['need', 'Что нужно от вас', d.requests.length], ['reports', 'Отчёты']] }];
+  if (d.role === 'сотрудник') return [
+    { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты']] },
+    { sec: 'Справочники', items: [['regs', 'Регламенты']] }];
+  return [
+    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', null, 'этап 4'], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', null, 'этап 3']] },
+    { sec: 'Управление', items: [['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
+}
+const TITLES = { dash: 'Аналитика', leads: 'Заявки', clients: 'Клиенты', tasks: 'Задачи', requests: 'Запросы клиентам', reports: 'Отчёты',
+  users: 'Сотрудники и доступы', regs: 'Регламенты', deadlines: 'Сроки платежей', need: 'Что нужно от вас' };
+
 function render() {
-  const d = S.data;
-  $('testBar').style.display = d.test ? 'block' : 'none';
+  const d = S.data; if (!d) return;
+  const groups = navFor(d);
+  const all = groups.flatMap(g => g.items).filter(i => !i[3]);
+  if (!S.view || !all.some(i => i[0] === S.view)) S.view = all[0][0];
+  const roleLbl = d.role === 'руководитель' ? 'Руководитель' : d.role === 'сотрудник' ? 'Сотрудник' : 'Клиент';
+  const shownName = d.role === 'клиент' ? d.clientName : (d.role === 'руководитель' ? d.me : d.name);
+  const navHtml = groups.map(g => (g.sec ? `<div class="nav-sec">${esc(g.sec)}</div>` : '') + g.items.map(i =>
+    `<button data-v="${i[0]}" class="${i[0] === S.view ? 'on' : ''}" ${i[3] ? 'disabled' : ''}><span>${esc(i[1])}</span>${i[3] ? `<span class="soon">${esc(i[3])}</span>` : (i[2] ? `<span class="cnt">${i[2]}</span>` : '')}</button>`).join('')).join('');
+  let asSel = '';
   if (d.isManager) {
-    $('asBox').style.display = 'block';
     const cur = S.as ? S.as.role + '|' + (S.as.name || S.as.code) : '';
-    $('asSel').innerHTML = '<option value="">Я — руководитель (все задачи)</option>' +
-      '<optgroup label="Смотреть как сотрудник">' + (d.employees || []).map(e => `<option value="сотрудник|${esc(e)}">${esc(e)}</option>`).join('') + '</optgroup>' +
-      '<optgroup label="Смотреть как клиент">' + (d.clients || []).map(c => `<option value="клиент|${esc(c.code)}">${esc(c.name)}</option>`).join('') + '</optgroup>';
-    $('asSel').value = cur;
+    asSel = `<div class="small muted">Смотреть как</div><select id="asSel"><option value="">я — руководитель</option>
+      <optgroup label="Сотрудник">${(d.employees || []).map(e => `<option value="сотрудник|${esc(e)}" ${cur === 'сотрудник|' + e ? 'selected' : ''}>${esc(e)}</option>`).join('')}</optgroup>
+      <optgroup label="Клиент">${(d.clients || []).map(c => `<option value="клиент|${esc(c.code)}" ${cur === 'клиент|' + c.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup></select>`;
   }
-  const tabs = d.role === 'клиент'
-    ? [['dl', 'Сроки'], ['need', 'Что нужно от вас' + (d.requests.length ? ' (' + d.requests.length + ')' : '')], ['rep', 'Отчёты']]
-    : [['tasks', 'Задачи'], ['reqs', 'Запросы' + (d.requests.length ? ' (' + d.requests.length + ')' : '')], ['cl', 'Клиенты']];
-  if (!tabs.some(t => t[0] === S.tab)) S.tab = tabs[0][0];
-  $('tabs').innerHTML = tabs.map(t => `<button class="${t[0] === S.tab ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('');
-  $('title').textContent = d.role === 'клиент' ? d.clientName : 'АдалинКонсалт — CRM';
-  $('subtitle').textContent = d.role === 'клиент' ? 'Кабинет клиента' + (d.viaManager ? ' (просмотр руководителем)' : '')
-    : (d.role === 'руководитель' ? 'Руководитель' : 'Сотрудник: ' + d.name + (d.viaManager ? ' (просмотр руководителем)' : ''));
-  ({ tasks: renderTasks, reqs: renderReqs, cl: renderClients, dl: renderDeadlines, need: renderNeed, rep: renderReports })[S.tab]();
+  $('root').innerHTML = `<div class="app">
+    <aside class="side">
+      <div class="brand"><div class="logo">А</div><div><b>АдалинКонсалт</b><span>CRM</span></div></div>
+      <nav class="nav" id="nav">${navHtml}</nav>
+      <div class="side-foot">
+        <div class="who"><div class="ava">${esc(String(shownName || roleLbl).charAt(0))}</div><div><b>${esc(shownName || roleLbl)}</b><span>${esc(roleLbl)}${d.viaManager ? ' · просмотр' : ''}</span></div></div>
+        ${asSel}
+        ${d.sheetUrl && !d.viaManager ? `<a class="linkbtn" href="${esc(d.sheetUrl)}" target="_blank" rel="noopener">Таблица</a>` : ''}
+        ${S.token ? '<button class="linkbtn" id="chpw">Сменить пароль</button><button class="linkbtn" id="logout">Выйти</button>' : ''}
+      </div>
+    </aside>
+    <div class="main">
+      <div class="mnav" id="mnav">${all.map(i => `<button data-v="${i[0]}" class="${i[0] === S.view ? 'on' : ''}">${esc(i[1])}${i[2] ? ' · ' + i[2] : ''}</button>`).join('')}</div>
+      <div class="top"><h2>${esc(TITLES[S.view] || '')}</h2><div class="right">${d.test ? '<span class="pill warn">тестовый режим</span>' : ''}<span>${esc(longDate(d.today))}</span></div></div>
+      ${d.test && d.role !== 'клиент' ? '<div class="testbar">Тестовый режим: всё, что адресовано клиентам и сотрудникам, приходит только руководителю с пометкой [ТЕСТ].</div>' : ''}
+      ${d.viaManager ? `<div class="viewbar">Вы смотрите глазами: ${esc(d.role === 'клиент' ? 'клиент ' + d.clientName : 'сотрудник ' + d.name)}. Изменения сохраняются по-настоящему.</div>` : ''}
+      <div class="content" id="content"></div>
+    </div></div>`;
+  document.querySelectorAll('#nav button, #mnav button').forEach(b => b.onclick = () => { if (b.disabled) return; S.view = b.dataset.v; S.drawer = null; location.hash = S.view; render(); window.scrollTo(0, 0); });
+  if ($('asSel')) $('asSel').onchange = e => {
+    const v = e.target.value;
+    if (!v) S.as = null; else { const [role, x] = v.split('|'); S.as = role === 'клиент' ? { role, code: x } : { role, name: x }; }
+    S.view = null; S.f = { q: '', emp: '', client: '', period: '', st: 'open' }; closeDrawer();
+    $('content').innerHTML = '<div class="loading">Загрузка…</div>'; act('me');
+  };
+  if ($('logout')) $('logout').onclick = async () => { try { await call('logout'); } catch (e) { /* уже вышли */ } logoutLocal(); renderLogin(); };
+  if ($('chpw')) $('chpw').onclick = () => renderPassword(false);
+  ({ dash: vDash, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs,
+     deadlines: vDeadlines, need: vNeed, reports: vReports })[S.view]();
+  if (S.drawer) S.drawer();
 }
-$('asSel').addEventListener('change', e => {
-  const v = e.target.value;
-  if (!v) S.as = null; else { const [role, x] = v.split('|'); S.as = role === 'клиент' ? { role, code: x } : { role, name: x }; }
-  S.tab = null; $('main').innerHTML = '<div class="loading">Загрузка…</div>'; load();
-});
-$('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.tab = b.dataset.tab; render(); } });
+function longDate(s) {
+  const d = parseD(s); if (!d) return s || '';
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).replace(' г.', '');
+}
 
-// ---------- сотрудник / руководитель ----------
-function statusBadge(t) {
+// ===================== общие помощники задач =====================
+const isDone = t => low(t['Статус']) === 'выполнено';
+const isWait = t => low(t['Статус']) === 'ожидает клиента';
+function badge(t) {
   if (t.overdue) return '<span class="badge b-over">просрочено</span>';
-  const s = String(t['Статус']).toLowerCase();
-  if (s === 'выполнено') return '<span class="badge b-done">выполнено</span>';
-  if (s === 'ожидает клиента') return '<span class="badge b-wait">ждём клиента</span>';
+  if (isDone(t)) return '<span class="badge b-done">выполнено</span>';
+  if (isWait(t)) return '<span class="badge b-wait">ждём клиента</span>';
+  if (low(t['Статус']) === 'в работе') return '<span class="badge b-work">в работе</span>';
   return '<span class="badge">' + esc(t['Статус'] || 'к выполнению') + '</span>';
 }
-function sumLine(t) {
-  if (t.kind === 'zp') return t['Сумма к выплате'] !== '' ? 'К выплате ' + money(t['Сумма к выплате']) + ' BYN' : 'Суммы не внесены';
-  if (t.kind === 'tax' || t.kind === 'avans') return t['Сумма'] !== '' ? money(t['Сумма']) + ' BYN' : 'Сумма не внесена';
+function sumText(t) {
+  if (t.kind === 'zp') return t['Сумма к выплате'] !== '' ? money(t['Сумма к выплате']) : '—';
+  if (t.kind === 'tax' || t.kind === 'avans') return t['Сумма'] !== '' ? money(t['Сумма']) : '—';
   return '';
 }
-function taskCard(t) {
-  return `<div class="card tap" data-id="${esc(t.id)}">
-    <div class="row"><div class="t">${esc(t.client)}</div>${statusBadge(t)}</div>
-    <div>${esc(t.title)}</div>
-    <div class="row muted"><span>Срок ${esc(t.deadline)}${t.payDate && t.payDate !== t.deadline ? ' · уплата ' + esc(t.payDate) : ''}</span><span>${esc(sumLine(t))}</span></div>
-    ${S.data.role === 'руководитель' ? `<div class="muted">${esc(t.employee)}</div>` : ''}
-    ${t.request ? `<div class="muted">Запрос клиенту от ${esc(t.request.date)}: ${esc(t.request.text)}</div>` : ''}
-  </div>`;
+function needsSum(t) {
+  if (isDone(t) && t.kind === 'none') return false;
+  if (t.kind === 'zp') return t['Сумма к выплате'] === '' || t['Подоходный'] === '' || t['ФСЗН'] === '';
+  if (t.kind === 'tax' || t.kind === 'avans') return t['Сумма'] === '';
+  return false;
 }
-function renderTasks() {
-  const d = S.data;
+function daysTo(s) { const d = parseD(s), t = parseD(S.data.today); return d && t ? Math.round((d - t) / 864e5) : null; }
+function periods() { return [...new Set((S.data.tasks || []).map(t => t.period).filter(Boolean))]; }
+function taskRows(list, opts = {}) {
+  const mgr = S.data.role === 'руководитель';
+  if (!list.length) return '<div class="empty">Задач нет</div>';
+  return `<table class="tbl"><thead><tr>${opts.noClient ? '' : '<th>Клиент</th>'}<th>Задача</th><th>Срок</th><th class="num">Сумма, BYN</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Статус</th></tr></thead><tbody>` +
+    list.map(t => `<tr class="click" data-task="${esc(t.id)}">
+      ${opts.noClient ? '' : `<td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>`}
+      <td>${esc(t.title)}<div class="sub">${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}${t.request ? ' · запрос клиенту от ' + esc(t.request.date) : ''}</div></td>
+      <td data-l="Срок">${esc(t.deadline)}${t.payDate && t.payDate !== t.deadline ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
+      <td class="num" data-l="Сумма">${sumText(t) || ''}</td>
+      ${mgr ? `<td data-l="Сотрудник">${esc(t.employee)}</td>` : ''}
+      <td>${badge(t)}</td></tr>`).join('') + '</tbody></table>';
+}
+function bindTaskRows(root) { root.querySelectorAll('[data-task]').forEach(r => r.onclick = () => openTask(r.dataset.task)); }
+
+// ===================== АНАЛИТИКА (руководитель) =====================
+function vDash() {
+  const d = S.data, T = d.tasks, C = d.clientCards;
+  const active = C.filter(c => low(c['Статус']) === 'активный');
+  const feeField = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  const mrr = feeField ? active.reduce((a, c) => a + (Number(c[feeField]) || 0), 0) : 0;
+  const open = T.filter(t => !isDone(t)), over = T.filter(t => t.overdue), wait = T.filter(isWait);
+  const esc2 = d.requests.filter(r => r.escalated);
+  const noSum = open.filter(t => needsSum(t) && t.payDate && daysTo(t.payDate) !== null && daysTo(t.payDate) >= 0 && daysTo(t.payDate) <= 3);
+  const badCards = C.filter(c => /неполная/.test(c['Карточка'] || ''));
+  const noTg = active.filter(c => c['Telegram chat_id'] !== 'подключён');
+  const per = S.progPeriod && periods().includes(S.progPeriod) ? S.progPeriod : d.defaultPeriod;
+  const perTasks = T.filter(t => t.period === per);
+  const doneP = perTasks.filter(isDone).length;
+  const attn = [
+    ['#b42318', 'Просроченные задачи', 'срок прошёл, задача не закрыта', over.length, () => { S.f = { ...S.f, st: 'over', emp: '', client: '' }; go('tasks'); }],
+    ['#b42318', 'Клиент молчит — вопрос у вас', 'нет ответа и на повторный запрос', esc2.length, () => go('requests')],
+    ['#b42318', 'Нет суммы, а срок уплаты в ближайшие 3 дня', 'клиенту напоминание не уйдёт', noSum.length, () => { S.f = { ...S.f, st: 'nosum', emp: '', client: '' }; go('tasks'); }],
+    ['#b54708', 'Ждём информацию от клиента', 'открытые запросы клиентам', wait.length, () => go('requests')],
+    ['#b54708', 'Неполные карточки клиентов', 'по ним не создаются задачи', badCards.length, () => go('clients')],
+  ];
+  const emps = [...new Set(T.map(t => t.employee).filter(Boolean))];
+  $('content').innerHTML = `
+    <div class="over">Управленческий обзор</div>
+    <h1 class="hero">Всё важное — до того, как станет срочным.</h1>
+    <p class="lead">Задачи сотрудников, запросы клиентам и сроки — на одном экране. Данные из таблицы CRM на ${esc(d.today)}.</p>
+    <div class="kpis">
+      <div class="panel kpi"><div class="l">Активные клиенты</div><div class="v">${active.length}</div><div class="s">всего в базе ${C.length}</div></div>
+      <div class="panel kpi"><div class="l">Абонентская плата в месяц</div><div class="v">${mrr ? money(mrr).replace(/,00$/, '') : '—'}</div><div class="s">${mrr ? 'BYN, активные клиенты' : 'заполните в карточках'}</div></div>
+      <div class="panel kpi"><div class="l">Открытые задачи</div><div class="v">${open.length}</div><div class="s">у ${emps.length} сотр.</div></div>
+      <div class="panel kpi ${over.length ? 'red' : ''}"><div class="l">Просрочено</div><div class="v">${over.length}</div><div class="s">задач</div></div>
+      <div class="panel kpi ${wait.length ? 'amber' : ''}"><div class="l">Ждём клиента</div><div class="v">${wait.length}</div><div class="s">задач стоит</div></div>
+    </div>
+    <div class="minis">
+      <div class="panel mini"><div class="l">Выполнено за ${esc(per)}</div><div class="v">${doneP} из ${perTasks.length}</div></div>
+      <div class="panel mini"><div class="l">Открытые запросы клиентам</div><div class="v">${d.requests.length}</div></div>
+      <div class="panel mini"><div class="l">Вопросы у вас</div><div class="v">${esc2.length}</div></div>
+      <div class="panel mini"><div class="l">Неполные карточки</div><div class="v">${badCards.length}</div></div>
+      <div class="panel mini"><div class="l">Клиенты без Telegram</div><div class="v">${noTg.length}</div></div>
+    </div>
+    <div class="cols">
+      <div class="panel pad"><div class="ph"><h3>Требуют внимания</h3><span>нажмите строку, чтобы открыть список</span></div>
+        <ul class="attn">${attn.map((a, i) => `<li data-a="${i}"><span class="dot" style="background:${a[3] ? a[0] : '#c9ccc4'}"></span><span class="t">${esc(a[1])}<small>${esc(a[2])}</small></span><span class="n">${a[3]}</span></li>`).join('')}</ul></div>
+      <div class="panel pad"><div class="ph"><h3>Загрузка сотрудников</h3><span>задачи за 60 дней</span></div>
+        ${emps.length ? `<table class="tbl" style="margin-top:6px"><thead><tr><th>Сотрудник</th><th class="num">Открыто</th><th class="num">Просрочено</th><th class="num">Ждём клиента</th><th class="num">Выполнено</th></tr></thead><tbody>
+        ${emps.map(e => { const m = T.filter(t => t.employee === e); return `<tr class="click" data-emp="${esc(e)}"><td><b>${esc(e)}</b></td><td class="num" data-l="Открыто">${m.filter(t => !isDone(t)).length}</td><td class="num" data-l="Просрочено">${m.filter(t => t.overdue).length || '—'}</td><td class="num" data-l="Ждём клиента">${m.filter(isWait).length || '—'}</td><td class="num" data-l="Выполнено">${m.filter(isDone).length}</td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">Задач пока нет</div>'}
+      </div>
+    </div>
+    <div class="panel pad">
+      <div class="ph"><h3>Готовность отчётов клиентам</h3>
+        <select id="progSel">${[...new Set([d.defaultPeriod, ...periods()])].map(p => `<option ${p === per ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
+      <div class="muted small" style="margin-bottom:8px">Выполненные задачи за отчётный период по каждому клиенту. Когда всё выполнено — можно готовить отчёт (этап 3).</div>
+      ${C.map(c => { const m = perTasks.filter(t => t.clientCode === c['Код']); if (!m.length) return ''; const dn = m.filter(isDone).length; const pct = Math.round(dn / m.length * 100);
+        return `<div class="prog" data-cl="${esc(c['Код'])}"><div><b>${esc(c['Клиент'])}</b><div class="sub muted small">${esc(c['Ответственный'])}</div></div><div class="bar"><i style="width:${pct}%;${pct === 100 ? 'background:#1e7a4c' : ''}"></i></div><div class="r">${dn} из ${m.length}</div></div>`; }).join('') || '<div class="empty">Задач за этот период нет</div>'}
+    </div>`;
+  $('content').querySelectorAll('[data-a]').forEach(li => li.onclick = attn[li.dataset.a][4]);
+  $('content').querySelectorAll('[data-emp]').forEach(r => r.onclick = () => { S.f = { ...S.f, emp: r.dataset.emp, st: 'open', client: '' }; go('tasks'); });
+  $('content').querySelectorAll('[data-cl]').forEach(r => r.onclick = () => openClient(r.dataset.cl));
+  $('progSel').onchange = e => { S.progPeriod = e.target.value; vDash(); };
+}
+function go(view) { S.view = view; S.drawer = null; closeDrawer(); location.hash = view; render(); window.scrollTo(0, 0); }
+
+// ===================== ЗАДАЧИ =====================
+function vTasks() {
+  const d = S.data, mgr = d.role === 'руководитель', f = S.f;
   let list = d.tasks.slice();
-  if (d.role === 'руководитель' && S.emp) list = list.filter(t => t.employee === S.emp);
-  const f = S.filter;
-  if (f === 'open') list = list.filter(t => String(t['Статус']).toLowerCase() !== 'выполнено');
-  if (f === 'over') list = list.filter(t => t.overdue);
-  if (f === 'wait') list = list.filter(t => String(t['Статус']).toLowerCase() === 'ожидает клиента');
-  if (f === 'done') list = list.filter(t => String(t['Статус']).toLowerCase() === 'выполнено');
-  const chips = [['open', 'Открытые'], ['over', 'Просрочено'], ['wait', 'Ждём клиента'], ['done', 'Выполнено']]
-    .map(c => `<button class="${c[0] === f ? 'on' : ''}" data-f="${c[0]}">${c[1]}</button>`).join('');
-  const empSel = d.role === 'руководитель'
-    ? `<select id="empSel" style="margin-bottom:8px"><option value="">Все сотрудники</option>${d.employees.map(e => `<option ${e === S.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : '';
-  $('main').innerHTML = empSel + `<div class="chips">${chips}</div>` +
-    (list.length ? list.map(taskCard).join('') : '<div class="empty">Задач нет</div>');
-  $('main').querySelectorAll('.chips button').forEach(b => b.onclick = () => { S.filter = b.dataset.f; renderTasks(); });
-  if ($('empSel')) $('empSel').onchange = e => { S.emp = e.target.value; renderTasks(); };
-  $('main').querySelectorAll('.card.tap').forEach(c => c.onclick = () => openTask(c.dataset.id));
+  if (f.emp) list = list.filter(t => t.employee === f.emp);
+  if (f.client) list = list.filter(t => t.clientCode === f.client);
+  if (f.period) list = list.filter(t => t.period === f.period);
+  if (f.q) { const q = low(f.q); list = list.filter(t => low(t.title + ' ' + t.client).includes(q)); }
+  const counts = { open: list.filter(t => !isDone(t)).length, over: list.filter(t => t.overdue).length, wait: list.filter(isWait).length, nosum: list.filter(t => !isDone(t) && needsSum(t)).length, done: list.filter(isDone).length, all: list.length };
+  const byStatus = { open: t => !isDone(t), over: t => t.overdue, wait: isWait, nosum: t => !isDone(t) && needsSum(t), done: isDone, all: () => true };
+  list = list.filter(byStatus[f.st] || byStatus.open);
+  const clientsOpt = mgr ? d.clients : d.clientCards.map(c => ({ code: c['Код'], name: c['Клиент'] }));
+  $('content').innerHTML = `
+    <div class="toolbar">
+      <input type="text" id="fq" placeholder="Поиск по задаче или клиенту" value="${esc(f.q)}" style="width:240px">
+      ${mgr ? `<select id="femp"><option value="">Все сотрудники</option>${d.employees.map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
+      <select id="fcl"><option value="">Все клиенты</option>${clientsOpt.map(c => `<option value="${esc(c.code)}" ${c.code === f.client ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      <select id="fper"><option value="">Все периоды</option>${periods().map(p => `<option ${p === f.period ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <span class="grow"></span>
+      <button class="btn" id="newTask">+ Разовая задача</button>
+    </div>
+    <div class="toolbar"><div class="chips" id="fst">${[['open', 'Открытые'], ['over', 'Просрочено'], ['wait', 'Ждём клиента'], ['nosum', 'Нет суммы'], ['done', 'Выполнено'], ['all', 'Все']]
+      .map(c => `<button data-s="${c[0]}" class="${c[0] === f.st ? 'on' : ''}">${c[1]} ${counts[c[0]]}</button>`).join('')}</div></div>
+    <div class="panel">${taskRows(list)}</div>
+    ${!mgr ? '<p class="muted small">Здесь только ваши задачи. Выполненные показываются за последние 60 дней.</p>' : ''}`;
+  $('fq').oninput = e => { S.f.q = e.target.value; const pos = e.target.selectionStart; vTasks(); $('fq').focus(); $('fq').setSelectionRange(pos, pos); };
+  if ($('femp')) $('femp').onchange = e => { S.f.emp = e.target.value; vTasks(); };
+  $('fcl').onchange = e => { S.f.client = e.target.value; vTasks(); };
+  $('fper').onchange = e => { S.f.period = e.target.value; vTasks(); };
+  $('fst').onclick = e => { const b = e.target.closest('button'); if (b) { S.f.st = b.dataset.s; vTasks(); } };
+  $('newTask').onclick = () => openNewTask(S.f.client);
+  bindTaskRows($('content'));
 }
-function field(name, label, value, type = 'text') {
-  return `<div><label>${label}</label><input data-f="${name}" type="text" inputmode="${type === 'num' ? 'decimal' : 'text'}" value="${esc(type === 'num' && value !== '' ? money(value) : value)}"></div>`;
+
+function numField(name, label, v) {
+  return `<div><label>${esc(label)}</label><input type="text" inputmode="decimal" data-f="${esc(name)}" value="${esc(v !== '' ? money(v) : '')}"></div>`;
 }
 function openTask(id) {
   const t = S.data.tasks.find(x => x.id === id);
-  if (!t) return;
-  const st = String(t['Статус']).toLowerCase();
-  const seg = ['к выполнению', 'в работе', 'выполнено'].map(s => `<button data-s="${s}" class="${s === st ? 'on' : ''}">${s}</button>`).join('');
+  if (!t) { closeDrawer(); return; }
+  const st = low(t['Статус']) || 'к выполнению';
+  const reg = t.reg ? S.data.regs.find(g => g.code === t.reg) : null;
   let sums = '';
-  if (t.kind === 'zp') sums = `<div class="grid2">${field('Сумма к выплате', 'К выплате, BYN', t['Сумма к выплате'], 'num')}${field('Подоходный', 'Подоходный, BYN', t['Подоходный'], 'num')}</div>
-      <div class="grid2">${field('ФСЗН', 'ФСЗН, BYN', t['ФСЗН'], 'num')}${field('Белгосстрах', 'Белгосстрах, BYN', t['Белгосстрах'], 'num')}</div>`;
-  if (t.kind === 'tax' || t.kind === 'avans') sums = field('Сумма', 'Сумма к уплате, BYN (0 — платить нечего)', t['Сумма'], 'num');
-  const pay = t.kind !== 'none' ? `<label>Платёжка</label><select data-f="Платёжка">${['не подготовлена', 'подготовлена', 'клиент платит сам']
-    .map(v => `<option ${v === t['Платёжка'] ? 'selected' : ''}>${v}</option>`).join('')}</select>` : '';
+  if (t.kind === 'zp') sums = `<div class="g2">${numField('Сумма к выплате', 'К выплате работникам, BYN', t['Сумма к выплате'])}${numField('Подоходный', 'Подоходный налог, BYN', t['Подоходный'])}${numField('ФСЗН', 'ФСЗН, BYN', t['ФСЗН'])}${numField('Белгосстрах', 'Белгосстрах, BYN', t['Белгосстрах'])}</div>
+    <div class="muted small" style="margin-top:6px">Без сумм «к выплате», подоходного и ФСЗН напоминание клиенту не уйдёт.</div>`;
+  if (t.kind === 'tax' || t.kind === 'avans') sums = numField('Сумма', 'Сумма к уплате, BYN (0 — платить нечего)', t['Сумма']) + '<div class="muted small" style="margin-top:6px">Без суммы напоминание клиенту не уйдёт.</div>';
+  const pay = t.kind !== 'none' ? `<label>Платёжка</label><select data-f="Платёжка">${['', 'не подготовлена', 'подготовлена', 'клиент платит сам'].map(v => `<option value="${v}" ${v === t['Платёжка'] ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select>` : '';
   const reasons = S.data.reasons.map(r => `<option value="${esc(r.code)}">${esc(r.label)}</option>`).join('');
   const req = t.request
-    ? `<div class="box"><div class="t">Запрос клиенту от ${esc(t.request.date)}</div><div>${esc(t.request.text)}</div>
-         <button class="btn sec2" id="closeReq">Клиент прислал — закрыть запрос</button></div>`
-    : `<div class="box"><div class="t">Нужно что-то от клиента?</div>
-         <label>Причина</label><select id="rsn">${reasons}</select>
-         <label>Что именно (увидит клиент)</label><textarea id="rtxt" placeholder="Например: выписка по счёту в Беларусбанке за 01–15.10"></textarea>
-         <button class="btn sec2" id="sendReq">Отправить запрос клиенту</button>
-         <div class="muted" style="margin-top:6px">Клиент получит сообщение сразу. Без ответа — повтор на следующий рабочий день, затем вопрос уйдёт руководителю.</div></div>`;
-  $('panel').innerHTML = `<h2>${esc(t.title)}</h2>
-    <div class="muted">${esc(t.client)} · отчётный период: ${esc(t.period)}</div>
-    <div class="muted">Срок задачи ${esc(t.deadline)}${t.payDate ? ' · срок уплаты ' + esc(t.payDate) : ''}${S.data.role === 'руководитель' ? ' · ' + esc(t.employee) : ''}</div>
-    <label>Статус</label><div class="seg" id="seg">${seg}</div>
-    ${sums}${pay}
-    ${field('Итог для клиента', 'Итог для клиента (попадёт в отчёт)', t['Итог для клиента'])}
-    <label>Внутренний комментарий (клиент не видит)</label><textarea data-f="Внутренний комментарий">${esc(t['Внутренний комментарий'])}</textarea>
-    <button class="btn" id="save">Сохранить</button>
-    ${req}
-    <button class="btn sec2" id="cancel">Закрыть</button>`;
-  let status = t['Статус'];
+    ? `<div class="box"><h4>Запрос клиенту от ${esc(t.request.date)}</h4><div>${esc(t.request.text)}</div>
+        <div class="actions"><button class="btn ghost" id="closeReq">Клиент прислал — закрыть запрос</button></div></div>`
+    : (isDone(t) ? '' : `<div class="box"><h4>Нужно что-то от клиента?</h4>
+        <label>Причина</label><select id="rsn">${reasons}</select>
+        <label>Что именно (увидит клиент)</label><textarea id="rtxt" placeholder="Например: выписка по счёту в Беларусбанке за 01–15.10"></textarea>
+        <div class="actions"><button class="btn ghost" id="sendReq">Отправить запрос клиенту</button></div>
+        <div class="muted small" style="margin-top:6px">Клиент получит сообщение в Telegram сразу. Без ответа — повтор на следующий рабочий день, потом вопрос уйдёт руководителю.</div></div>`);
+  showDrawer(`<div class="dh"><div><h3>${esc(t.title)}</h3><div class="muted small">${esc(t.client)} · отчётный период: ${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}</div>
+      <div class="muted small">Срок задачи ${esc(t.deadline)}${t.payDate ? ' · срок уплаты ' + esc(t.payDate) : ''} · ${esc(t.employee)}</div></div><button class="x" id="dx" aria-label="Закрыть">×</button></div>
+    <div class="db">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge(t)}${t.closed ? `<span class="muted small">закрыта ${esc(t.closed)}</span>` : ''}<span class="grow" style="flex:1"></span>
+        ${reg ? `<button class="btn ghost sm" id="openReg">Открыть регламент</button>` : `<span class="muted small">регламент не привязан</span>`}</div>
+      <label>Статус</label><div class="chips" id="seg">${['к выполнению', 'в работе', 'выполнено'].map(s => `<button type="button" data-s="${s}" class="${s === st ? 'on' : ''}">${s}</button>`).join('')}${st === 'ожидает клиента' ? '<button type="button" class="on" data-s="ожидает клиента">ждём клиента</button>' : ''}</div>
+      ${sums}${pay}
+      <label>Итог для клиента (попадёт в отчёт)</label><input type="text" data-f="Итог для клиента" value="${esc(t['Итог для клиента'])}" placeholder="Например: декларация подана 20.10">
+      <label>Внутренний комментарий (клиент не видит)</label><textarea data-f="Внутренний комментарий">${esc(t['Внутренний комментарий'])}</textarea>
+      <div class="actions"><button class="btn" id="save">Сохранить</button><button class="btn ghost" id="dx2">Закрыть</button></div>
+      ${req}
+    </div>`, () => openTask(id));
+  let status = t['Статус'] || 'к выполнению';
   $('seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; status = b.dataset.s; $('seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
-  $('cancel').onclick = closeSheet;
+  $('dx').onclick = $('dx2').onclick = closeDrawer;
+  if ($('openReg')) $('openReg').onclick = () => showReg(reg);
   $('save').onclick = async () => {
     const fields = { 'Статус': status };
-    $('panel').querySelectorAll('[data-f]').forEach(el => fields[el.dataset.f] = el.value);
-    busy($('save'));
-    if (await load('task.update', { id: t.id, fields })) { haptic(); closeSheet(); } else unbusy($('save'), 'Сохранить');
+    $('drawer').querySelectorAll('[data-f]').forEach(el => fields[el.dataset.f] = el.value);
+    if (await act('task.update', { id: t.id, fields }, $('save'))) { toast('Сохранено'); closeDrawer(); }
   };
   if ($('sendReq')) $('sendReq').onclick = async () => {
     const text = $('rtxt').value.trim();
-    if (!text) return showError('Допишите, что именно нужно от клиента.');
-    busy($('sendReq'));
-    if (await load('request.open', { taskId: t.id, reason: $('rsn').value, text })) { haptic(); closeSheet(); } else unbusy($('sendReq'), 'Отправить запрос клиенту');
+    if (!text) return toast('Допишите, что именно нужно от клиента.', true);
+    if (await act('request.open', { taskId: t.id, reason: $('rsn').value, text }, $('sendReq'))) toast('Запрос отправлен клиенту');
   };
-  if ($('closeReq')) $('closeReq').onclick = async () => {
-    busy($('closeReq'));
-    if (await load('request.close', { id: t.request.id })) { haptic(); closeSheet(); } else unbusy($('closeReq'), 'Клиент прислал — закрыть запрос');
+  if ($('closeReq')) $('closeReq').onclick = async () => { if (await act('request.close', { id: t.request.id }, $('closeReq'))) toast('Запрос закрыт, клиенту отправлено «Спасибо, получили»'); };
+}
+function openNewTask(clientCode) {
+  const d = S.data, mgr = d.role === 'руководитель';
+  const cl = d.clientCards;
+  openModal(`<h3>Разовая задача</h3><div class="muted small">Попадёт в отчёт клиенту за выбранный период.</div>
+    <label>Клиент</label><select id="ntc">${cl.map(c => `<option value="${esc(c['Код'])}" ${c['Код'] === clientCode ? 'selected' : ''}>${esc(c['Клиент'])}</option>`).join('')}</select>
+    <label>Что сделать</label><input type="text" id="ntt" placeholder="Например: сверка расчётов с ИМНС">
+    <div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" placeholder="${esc(d.today)}"></div>
+    <div><label>Отчётный период</label><input type="text" id="ntp" value="${esc(d.defaultPeriod)}"></div></div>
+    ${mgr ? `<label>Сотрудник</label><select id="nte">${d.employees.map(e => `<option>${esc(e)}</option>`).join('')}</select>` : ''}
+    <label>Комментарий (клиент не видит)</label><textarea id="ntm"></textarea>
+    <div class="actions"><button class="btn" id="ntb">Создать задачу</button><button class="btn ghost" id="ntx">Отмена</button></div>`);
+  const syncEmp = () => { if (!$('nte')) return; const c = cl.find(x => x['Код'] === $('ntc').value); if (c && c['Ответственный']) $('nte').value = c['Ответственный']; };
+  syncEmp(); $('ntc').onchange = syncEmp;
+  $('ntx').onclick = closeModal;
+  $('ntb').onclick = async () => {
+    const r = await act('task.create', { clientCode: $('ntc').value, title: $('ntt').value, deadline: $('ntd').value.trim(), period: $('ntp').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value }, $('ntb'));
+    if (r) { closeModal(); toast('Задача создана'); openTask(r.createdId); }
   };
-  $('sheet').classList.add('open');
 }
-function closeSheet() { $('sheet').classList.remove('open'); }
-$('sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeSheet(); });
-function busy(b) { b.disabled = true; b.textContent = 'Сохраняю…'; }
-function unbusy(b, t) { b.disabled = false; b.textContent = t; }
-function haptic() { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); }
 
-function renderReqs() {
+// ===================== ЗАПРОСЫ КЛИЕНТАМ =====================
+function vRequests() {
+  const d = S.data, mgr = d.role === 'руководитель', r = d.requests.slice().sort((a, b) => (b.escalated - a.escalated) || (b.repeated - a.repeated));
+  $('content').innerHTML = `<p class="muted" style="margin-top:0">Открытые запросы: что сотрудник ждёт от клиента. Без ответа система на следующий рабочий день повторяет запрос, ещё через день передаёт вопрос руководителю.</p>
+    <div class="panel twrap">${r.length ? `<table class="tbl"><thead><tr><th>С какого числа</th><th>Клиент</th><th>Что нужно</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Состояние</th><th></th></tr></thead><tbody>
+    ${r.map(q => `<tr><td data-l="С">${esc(q.date)}</td><td data-l="Клиент"><b>${esc(q.client)}</b><div class="sub">${esc(q.task)}</div></td><td>${esc(q.text)}</td>${mgr ? `<td data-l="Сотрудник">${esc(q.employee)}</td>` : ''}
+      <td>${q.escalated ? '<span class="badge b-over">вопрос у руководителя</span>' : q.repeated ? '<span class="badge b-wait">повтор отправлен</span>' : '<span class="badge">ждём ответа</span>'}</td>
+      <td><div class="acts"><button class="btn ghost sm" data-close="${esc(q.id)}">Клиент прислал</button><button class="btn ghost sm" data-task="${esc(q.taskId)}">Задача</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Открытых запросов нет</div>'}</div>`;
+  $('content').querySelectorAll('[data-close]').forEach(b => b.onclick = async e => { e.stopPropagation(); if (await act('request.close', { id: b.dataset.close }, b)) toast('Запрос закрыт'); });
+  bindTaskRows($('content'));
+}
+
+// ===================== КЛИЕНТЫ =====================
+function clientStats(code) {
+  const m = S.data.tasks.filter(t => t.clientCode === code);
+  return { all: m.length, done: m.filter(isDone).length, work: m.filter(t => low(t['Статус']) === 'в работе').length,
+    todo: m.filter(t => !isDone(t) && low(t['Статус']) !== 'в работе' && !isWait(t)).length, over: m.filter(t => t.overdue).length, wait: m.filter(isWait).length };
+}
+function vClients() {
+  const d = S.data, mgr = d.role === 'руководитель';
+  const fee = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  const q = low(S.f.cq || '');
+  const list = d.clientCards.filter(c => !q || low(c['Клиент'] + ' ' + c['Ответственный']).includes(q));
+  $('content').innerHTML = `<div class="toolbar"><input type="text" id="cq" placeholder="Поиск клиента" value="${esc(S.f.cq || '')}" style="width:260px"><span class="grow"></span>
+      ${mgr ? '<button class="btn" id="newCl">+ Новый клиент</button>' : ''}</div>
+    <div class="panel">${list.length ? `<table class="tbl"><thead><tr><th>Клиент</th><th>Тип, режим</th>${mgr ? '<th>Ответственный</th>' : ''}<th class="num">Открыто</th><th class="num">Просрочено</th><th class="num">Ждём клиента</th><th>Telegram</th><th>Карточка</th>${fee ? '<th class="num">Абон. плата, BYN</th>' : ''}</tr></thead><tbody>
+    ${list.map(c => { const s = clientStats(c['Код']); return `<tr class="click" data-cl="${esc(c['Код'])}"><td class="nm"><b>${esc(c['Клиент'])}</b><div class="sub">${esc(c['Код'])} · ${esc(c['Статус'])}</div></td>
+      <td data-l="Тип, режим">${esc(c['Тип'])}, ${esc(c['Режим'])}</td>${mgr ? `<td data-l="Ответственный">${esc(c['Ответственный'])}</td>` : ''}
+      <td class="num" data-l="Открыто">${s.all - s.done}</td><td class="num" data-l="Просрочено">${s.over ? `<span class="badge b-over">${s.over}</span>` : '—'}</td><td class="num" data-l="Ждём клиента">${s.wait ? `<span class="badge b-wait">${s.wait}</span>` : '—'}</td>
+      <td data-l="Telegram">${c['Telegram chat_id'] === 'подключён' ? '<span class="badge b-done">подключён</span>' : '<span class="badge">нет</span>'}</td>
+      <td data-l="Карточка">${/неполная/.test(c['Карточка'] || '') ? '<span class="badge b-wait">неполная</span>' : '<span class="badge b-done">полная</span>'}</td>
+      ${fee ? `<td class="num" data-l="Абон. плата">${money(c[fee]) || '—'}</td>` : ''}</tr>`; }).join('')}</tbody></table>` : '<div class="empty">Клиентов нет</div>'}</div>
+    ${!mgr ? '<p class="muted small">Здесь только клиенты, за которых вы отвечаете.</p>' : ''}`;
+  $('cq').oninput = e => { S.f.cq = e.target.value; const p = e.target.selectionStart; vClients(); $('cq').focus(); $('cq').setSelectionRange(p, p); };
+  if ($('newCl')) $('newCl').onclick = () => editClient(null);
+  $('content').querySelectorAll('[data-cl]').forEach(r => r.onclick = () => openClient(r.dataset.cl));
+}
+const CARD_GROUPS = [
+  ['Основное', ['Клиент', 'Код', 'Тип', 'Режим', 'Статус', 'Обслуживаем с', 'Ответственный']],
+  ['Налоги и зарплата', ['Плательщик НДС', 'Период НДС', 'Есть работники', 'День выплаты ЗП', 'День выплаты аванса', 'Импорт ЕАЭС', 'Недвижимость', 'Транспорт']],
+  ['Платёжки и связь', ['Платёжки по зарплате', 'Платёжки по налогам', 'Имя контактного лица', 'Telegram chat_id']],
+];
+function openClient(code, tab) {
+  const d = S.data, c = d.clientCards.find(x => x['Код'] === code);
+  if (!c) return;
+  tab = tab || 'card';
+  const mgr = d.role === 'руководитель', s = clientStats(code);
+  const tasks = d.tasks.filter(t => t.clientCode === code);
+  const known = CARD_GROUPS.flatMap(g => g[1]);
+  const rest = Object.keys(c).filter(k => !known.includes(k) && k !== 'Карточка');
+  const groups = CARD_GROUPS.concat(rest.length ? [['Прочее', rest]] : []);
+  const cardHtml = groups.map(g => `<h4 style="margin:14px 0 6px">${esc(g[0])}</h4><div class="kv">${g[1].filter(k => k in c).map(k => `<div>${esc(k)}</div><div>${esc(k === 'Telegram chat_id' ? c[k] : (c[k] === '' ? '—' : (/BYN/.test(k) ? money(c[k]) : c[k])))}</div>`).join('')}</div>`).join('') +
+    (/неполная/.test(c['Карточка'] || '') ? `<div class="note" style="margin-top:14px">Карточка ${esc(c['Карточка'])}. Пока она неполная, задачи и напоминания по клиенту не создаются.</div>` : '');
+  const ruleCodes = [...new Set(tasks.map(t => t.rule).filter(Boolean))];
+  const regs = d.regs.filter(g => g.rules.some(r => ruleCodes.includes(r)));
+  const regHtml = regs.length ? `<ul class="attn">${regs.map(g => `<li data-reg="${esc(g.code)}"><span class="dot" style="background:${String(g.steps || '').trim() ? '#27466e' : '#c9ccc4'}"></span><span class="t">${esc(g.name)}<small>${esc(g.category || '')}${String(g.steps || '').trim() ? '' : ' · шаги не заполнены'}</small></span></li>`).join('')}</ul>` : '<div class="empty">По задачам клиента регламенты не привязаны</div>';
+  showDrawer(`<div class="dh"><div><h3>${esc(c['Клиент'])}</h3><div class="muted small">${esc(c['Код'])} · ${esc(c['Тип'])}, ${esc(c['Режим'])} · ${esc(c['Статус'])} · ${esc(c['Ответственный'])}</div></div><button class="x" id="dx">×</button></div>
+    <div class="db">
+      <div class="stats"><div><b>${s.all}</b><span>всего задач</span></div><div><b>${s.done}</b><span>выполнено</span></div><div><b>${s.work}</b><span>в работе</span></div><div><b>${s.todo}</b><span>к выполнению</span></div><div><b style="color:${s.over ? '#b42318' : 'inherit'}">${s.over}</b><span>просрочено</span></div><div><b style="color:${s.wait ? '#9a5b00' : 'inherit'}">${s.wait}</b><span>ждём клиента</span></div></div>
+      <div class="actions" style="margin:0 0 12px"><button class="btn ghost sm" id="cNewTask">Создать задачу</button>${mgr ? '<button class="btn ghost sm" id="cEdit">Редактировать карточку</button>' : ''}</div>
+      <div class="tabs2" id="ctabs">${[['card', 'Карточка'], ['tasks', 'Задачи (' + tasks.length + ')'], ['regs', 'Регламенты услуг']].map(x => `<button data-t="${x[0]}" class="${x[0] === tab ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
+      <div id="ctab">${tab === 'card' ? cardHtml : tab === 'tasks' ? `<div class="panel">${taskRows(tasks, { noClient: true })}</div>` : regHtml}</div>
+    </div>`, () => openClient(code, tab), true);
+  $('dx').onclick = closeDrawer;
+  $('ctabs').onclick = e => { const b = e.target.closest('button'); if (b) openClient(code, b.dataset.t); };
+  $('cNewTask').onclick = () => openNewTask(code);
+  if ($('cEdit')) $('cEdit').onclick = () => editClient(code);
+  bindTaskRows($('ctab'));
+  $('ctab').querySelectorAll('[data-reg]').forEach(li => li.onclick = () => showReg(d.regs.find(g => g.code === li.dataset.reg)));
+}
+function editClient(code) {
+  const d = S.data, c = code ? d.clientCards.find(x => x['Код'] === code) : {};
+  const fields = d.clientFields.filter(f => !f.readonly);
+  const input = f => {
+    const v = c[f.name] === undefined ? '' : c[f.name];
+    if (f.options) return `<select data-cf="${esc(f.name)}"><option value=""></option>${f.options.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    return `<input type="text" data-cf="${esc(f.name)}" value="${esc(f.number && v !== '' && /BYN/.test(f.name) ? money(v) : v)}" ${f.date ? 'placeholder="ДД.ММ.ГГГГ"' : ''}>`;
+  };
+  showDrawer(`<div class="dh"><div><h3>${code ? 'Карточка: ' + esc(c['Клиент']) : 'Новый клиент'}</h3><div class="muted small">Поля со звёздочкой обязательны: без них задачи и напоминания не создаются.</div></div><button class="x" id="dx">×</button></div>
+    <div class="db"><div class="g2">${fields.map(f => `<div><label>${esc(f.name)}${f.required ? ' *' : ''}${f.money ? ' · видит только руководитель' : ''}</label>${input(f)}</div>`).join('')}</div>
+      <div class="actions"><button class="btn" id="csave">Сохранить</button><button class="btn ghost" id="ccancel">Отмена</button></div></div>`, null, true);
+  $('dx').onclick = closeDrawer;
+  $('ccancel').onclick = () => code ? openClient(code) : closeDrawer();
+  $('csave').onclick = async () => {
+    const out = {};
+    $('drawer').querySelectorAll('[data-cf]').forEach(el => out[el.dataset.cf] = el.value);
+    const r = await act('client.save', { code: code || '', fields: out }, $('csave'));
+    if (r) { toast('Карточка сохранена'); openClient(r.savedCode); }
+  };
+}
+
+// ===================== РЕГЛАМЕНТЫ =====================
+function vRegs() {
+  const d = S.data, mgr = d.role === 'руководитель';
+  const q = low(S.regQ);
+  const list = d.regs.filter(g => !q || low(g.name + ' ' + g.category + ' ' + g.steps).includes(q));
+  const cats = [...new Set(list.map(g => g.category || 'Без категории'))];
+  if (!S.regSel || !d.regs.some(g => g.code === S.regSel)) S.regSel = list[0] ? list[0].code : null;
+  const filled = d.regs.filter(g => String(g.steps || '').trim()).length;
+  $('content').innerHTML = `<div class="toolbar"><input type="text" id="rq" placeholder="Поиск по регламентам" value="${esc(S.regQ)}" style="width:280px">
+      <span class="muted small">Заполнено ${filled} из ${d.regs.length}</span><span class="grow"></span>${mgr ? '<button class="btn" id="newReg">+ Новый регламент</button>' : ''}</div>
+    ${d.regs.length ? `<div class="regs"><div class="panel reglist">${cats.map(cat => `<div class="grp">${esc(cat)}</div>` + list.filter(g => (g.category || 'Без категории') === cat).map(g =>
+      `<button data-r="${esc(g.code)}" class="${g.code === S.regSel ? 'on' : ''}">${esc(g.name)}<small>${String(g.steps || '').trim() ? 'обновлён ' + esc(g.updated || '—') : 'шаги не заполнены'}</small></button>`).join('')).join('')}</div>
+      <div class="panel pad" id="regView"></div></div>` : `<div class="panel empty">Регламентов пока нет.${mgr ? ' Выполните в таблице CRM → «Обновить структуру таблицы (v2.1)» или создайте первый регламент.' : ''}</div>`}`;
+  $('rq').oninput = e => { S.regQ = e.target.value; const p = e.target.selectionStart; vRegs(); $('rq').focus(); $('rq').setSelectionRange(p, p); };
+  if ($('newReg')) $('newReg').onclick = () => editReg(null);
+  $('content').querySelectorAll('[data-r]').forEach(b => b.onclick = () => { S.regSel = b.dataset.r; vRegs(); });
+  if ($('regView') && S.regSel) $('regView').innerHTML = regHtml(d.regs.find(g => g.code === S.regSel), mgr);
+  bindRegButtons($('regView'));
+}
+function stepsHtml(steps) {
+  const lines = String(steps || '').split(/\n+/).map(s => s.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+  return lines.length ? `<ol class="steps">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : '<div class="note">Шаги пока не заполнены.</div>';
+}
+function regHtml(g, mgr) {
+  if (!g) return '';
+  const ruleNames = g.rules.map(k => { const r = S.data.rules.find(x => x.code === k); return r ? r.name : k; });
+  return `<div class="ph"><h3 style="font-size:18px">${esc(g.name)}</h3>${mgr ? `<span><button class="btn ghost sm" data-edit="${esc(g.code)}">Редактировать</button></span>` : ''}</div>
+    <div class="muted small">${esc(g.category || 'Без категории')} · код ${esc(g.code)}${g.updated ? ' · обновлён ' + esc(g.updated) : ''}${g.resp ? ' · ответственный ' + esc(g.resp) : ''}</div>
+    ${g.desc ? `<p style="margin:12px 0 0">${esc(g.desc)}</p>` : ''}
+    <h4 style="margin:16px 0 4px">Порядок выполнения</h4>${stepsHtml(g.steps)}
+    <h4 style="margin:16px 0 4px">Для каких задач</h4><div class="muted">${ruleNames.length ? ruleNames.map(esc).join('; ') : 'не привязан к задачам'}</div>`;
+}
+function bindRegButtons(root) { if (root) root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editReg(b.dataset.edit)); }
+function showReg(g) {
+  if (!g) return;
+  openModal(regHtml(g, false) + '<div class="actions"><button class="btn ghost" id="mx">Закрыть</button></div>');
+  $('mx').onclick = closeModal;
+}
+function editReg(code) {
+  const d = S.data, g = code ? d.regs.find(x => x.code === code) : { name: '', category: '', rules: [], desc: '', steps: '', resp: '' };
+  const cats = [...new Set(d.regs.map(x => x.category).filter(Boolean))];
+  openModal(`<h3>${code ? 'Регламент' : 'Новый регламент'}</h3>
+    <label>Название</label><input type="text" id="gn" value="${esc(g.name)}">
+    <div class="g2"><div><label>Категория</label><input type="text" id="gc" list="gcl" value="${esc(g.category)}"><datalist id="gcl">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+    <div><label>Ответственный за регламент</label><input type="text" id="gr" value="${esc(g.resp)}"></div></div>
+    <label>Для каких задач (коды правил через запятую)</label><input type="text" id="gk" value="${esc(g.rules.join(', '))}" placeholder="например: ZP, AVANS">
+    <div class="muted small" style="margin-top:4px">${d.rules.map(r => esc(r.code) + ' — ' + esc(r.name)).join('; ')}</div>
+    <label>Кратко: зачем и когда</label><textarea id="gd" style="min-height:60px">${esc(g.desc)}</textarea>
+    <label>Шаги — каждый с новой строки</label><textarea id="gs" style="min-height:180px" placeholder="1. Получить выписку банка&#10;2. Проверить операции&#10;3. …">${esc(g.steps)}</textarea>
+    <div class="actions"><button class="btn" id="gsave">Сохранить</button><button class="btn ghost" id="gx">Отмена</button><span style="flex:1"></span>${code ? '<button class="btn danger" id="gdel">Удалить</button>' : ''}</div>`);
+  $('gx').onclick = closeModal;
+  $('gsave').onclick = async () => {
+    const r = await act('reg.save', { code: code || '', name: $('gn').value, category: $('gc').value, resp: $('gr').value, rules: $('gk').value, desc: $('gd').value, steps: $('gs').value }, $('gsave'));
+    if (r) { closeModal(); S.regSel = r.savedReg; S.view = 'regs'; render(); toast('Регламент сохранён'); }
+  };
+  if ($('gdel')) $('gdel').onclick = async () => {
+    if ($('gdel').dataset.sure !== '1') { $('gdel').dataset.sure = '1'; $('gdel').textContent = 'Точно удалить?'; return; }
+    if (await act('reg.delete', { code }, $('gdel'))) { closeModal(); S.regSel = null; toast('Регламент удалён'); }
+  };
+}
+
+// ===================== СОТРУДНИКИ И ДОСТУПЫ =====================
+function vUsers() {
+  const d = S.data;
+  const order = { 'руководитель': 0, 'сотрудник': 1, 'клиент': 2 };
+  const list = d.users.slice().sort((a, b) => (order[low(a.role)] - order[low(b.role)]) || String(a.name).localeCompare(b.name));
+  const clientName = code => (d.clients.find(c => c.code === code) || {}).name || code;
+  $('content').innerHTML = `<div class="toolbar"><span class="muted">Кто и как входит в систему. Пароли не хранятся в открытом виде: если человек забыл пароль — выдайте новый.</span><span class="grow"></span><button class="btn" id="newU">+ Добавить</button></div>
+    <div class="panel twrap"><table class="tbl"><thead><tr><th>Имя</th><th>Роль</th><th>Логин</th><th>Вход по паролю</th><th>Telegram</th><th>Статус</th><th>Последний вход</th><th></th></tr></thead><tbody>
+    ${list.map(u => `<tr><td class="nm"><b>${esc(u.name)}</b>${u.code && !String(u.name).includes(clientName(u.code)) ? `<div class="sub">${esc(clientName(u.code))}</div>` : ''}</td><td data-l="Роль">${esc(u.role)}</td><td data-l="Логин">${esc(u.login || '—')}</td>
+      <td data-l="Пароль">${u.hasPassword ? (u.mustChange ? '<span class="badge b-wait">выдан, ещё не сменён</span>' : '<span class="badge b-done">есть</span>') : '<span class="badge">не выдан</span>'}</td>
+      <td data-l="Telegram">${u.telegram ? '<span class="badge b-done">подключён</span>' : u.invited ? '<span class="badge b-wait">ссылка отправлена</span>' : '<span class="badge">нет</span>'}</td>
+      <td data-l="Статус">${low(u.status) === 'отключён' ? '<span class="badge b-over">отключён</span>' : esc(u.status || '—')}</td><td data-l="Последний вход">${esc(u.lastLogin || '—')}</td>
+      <td><div class="acts"><button class="btn ghost sm" data-ue="${u.row}">Изменить</button><button class="btn ghost sm" data-up="${u.row}" ${low(u.status) === 'отключён' ? 'disabled' : ''}>${u.hasPassword ? 'Новый пароль' : 'Выдать пароль'}</button>${u.telegram || low(u.status) === 'отключён' ? '' : '<button class="btn ghost sm" data-ui="' + u.row + '">Ссылка в Telegram</button>'}</div></td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="muted small">Сотрудник видит только своих клиентов и свои задачи, без абонентской платы. Клиент видит только сроки платежей, запросы к нему и отчёты. Имя сотрудника должно совпадать с «Ответственным» в карточках клиентов.</p>`;
+  $('newU').onclick = () => editUser(null);
+  $('content').querySelectorAll('[data-ue]').forEach(b => b.onclick = () => editUser(Number(b.dataset.ue)));
+  $('content').querySelectorAll('[data-up]').forEach(b => b.onclick = async () => {
+    const r = await act('user.password', { row: Number(b.dataset.up) }, b);
+    if (r && r.issued) showIssued(r.issued);
+  });
+  $('content').querySelectorAll('[data-ui]').forEach(b => b.onclick = async () => {
+    const r = await act('user.invite', { row: Number(b.dataset.ui) }, b);
+    if (r && r.invite) {
+      openModal(`<h3>Ссылка в Telegram</h3><div class="muted">Для ${esc(r.invite.name)}: по ней человек подключит уведомления. Ссылка одноразовая.</div>
+        <label>Ссылка</label><div class="copyrow"><input type="text" readonly value="${esc(r.invite.link)}" id="il"><button class="btn ghost" data-copy="il">Копировать</button></div>
+        <div class="actions"><button class="btn" id="mx">Готово</button></div>`);
+      bindCopy(); $('mx').onclick = closeModal;
+    }
+  });
+}
+function editUser(row) {
+  const d = S.data, u = row ? d.users.find(x => x.row === row) : { role: 'сотрудник', name: '', code: '', login: '', status: '' };
+  openModal(`<h3>${row ? 'Пользователь' : 'Новый пользователь'}</h3>
+    <label>Роль</label><select id="ur">${['сотрудник', 'клиент', 'руководитель'].map(r => `<option ${r === low(u.role) ? 'selected' : ''}>${r}</option>`).join('')}</select>
+    <label>Имя (для сотрудника — как в «Ответственный»)</label><input type="text" id="un" value="${esc(u.name)}">
+    <div id="ucw"><label>Клиент</label><select id="uc">${d.clients.map(c => `<option value="${esc(c.code)}" ${c.code === u.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <label>Логин (латиницей; можно оставить пустым — придумается сам при выдаче пароля)</label><input type="text" id="ul" value="${esc(u.login)}" autocapitalize="off">
+    ${row ? `<label>Статус</label><select id="us">${['активен', 'приглашён', 'отключён'].map(s => `<option ${s === low(u.status) ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      <div class="muted small" style="margin-top:4px">«Отключён» — человек сразу теряет доступ и к сайту, и к боту.</div>` : ''}
+    <div class="actions"><button class="btn" id="usave">Сохранить</button><button class="btn ghost" id="ux">Отмена</button></div>`);
+  const sync = () => { $('ucw').style.display = $('ur').value === 'клиент' ? '' : 'none'; };
+  sync(); $('ur').onchange = sync;
+  $('ux').onclick = closeModal;
+  $('usave').onclick = async () => {
+    const r = await act('user.save', { row: row || 0, role: $('ur').value, name: $('un').value, code: $('uc').value, login: $('ul').value.trim(), status: $('us') ? $('us').value : '' }, $('usave'));
+    if (r) { closeModal(); toast('Сохранено'); }
+  };
+}
+function showIssued(x) {
+  x = Object.assign({}, x, { url: API ? location.origin + location.pathname + '?api=' + encodeURIComponent(API) : x.url });
+  const text = `Доступ в CRM АдалинКонсалт\nАдрес: ${x.url || '(адрес сайта)'}\nЛогин: ${x.login}\nВременный пароль: ${x.password}\nПри первом входе система попросит придумать свой пароль.`;
+  openModal(`<h3>Логин и пароль для ${esc(x.name)}</h3>
+    <div class="note" style="margin:8px 0">Пароль показывается один раз — в таблице хранится только его зашифрованный отпечаток. Передайте его лично или в личном сообщении.</div>
+    <label>Адрес</label><div class="copyrow"><input type="text" readonly id="i1" value="${esc(x.url || '')}"><button class="btn ghost" data-copy="i1">Копировать</button></div>
+    <label>Логин</label><div class="copyrow"><input type="text" readonly id="i2" value="${esc(x.login)}"><button class="btn ghost" data-copy="i2">Копировать</button></div>
+    <label>Временный пароль</label><div class="copyrow"><input type="text" readonly id="i3" value="${esc(x.password)}"><button class="btn ghost" data-copy="i3">Копировать</button></div>
+    <label>Готовое сообщение</label><textarea readonly id="i4" style="min-height:110px">${esc(text)}</textarea>
+    <div class="actions"><button class="btn ghost" data-copy="i4">Копировать сообщение</button><button class="btn" id="mx">Готово</button></div>`);
+  bindCopy(); $('mx').onclick = closeModal;
+}
+function bindCopy() {
+  document.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+    const el = $(b.dataset.copy); el.select();
+    try { await navigator.clipboard.writeText(el.value); } catch (e) { try { document.execCommand('copy'); } catch (e2) { /* выделено — можно Ctrl+C */ } }
+    toast('Скопировано');
+  });
+}
+
+// ===================== КЛИЕНТ =====================
+function vDeadlines() {
+  const d = S.data;
+  $('content').innerHTML = `<div class="over">${esc(d.clientName)}</div><h1 class="hero">Ближайшие платежи</h1>
+    <p class="lead">Выплаты и налоги на 45 дней вперёд — те, по которым ваш бухгалтер уже рассчитал сумму. Напоминания также приходят в Telegram.</p>
+    <div class="panel">${d.deadlines.length ? `<table class="tbl"><thead><tr><th>Срок</th><th>Платёж</th><th class="num">Сумма, BYN</th><th>Платёжка</th></tr></thead><tbody>
+      ${d.deadlines.map(x => `<tr><td data-l="Срок"><b>${esc(x.date)}</b></td><td>${esc(x.what)}${x.extra ? `<div class="sub">${esc(x.extra)}</div>` : ''}</td><td class="num" data-l="Сумма"><b>${esc(x.sum)}</b></td>
+      <td data-l="Платёжка">${x.prepared ? '<span class="badge b-done">подготовлена — подпишите в банк-клиенте</span>' : '<span class="muted small">—</span>'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Ближайших платежей нет</div>'}</div>
+    ${d.employee ? `<p class="muted small">Ваш бухгалтер: ${esc(d.employee)}. Вопросы и документы можно присылать в Telegram-бот АдалинКонсалт — мы передадим.</p>` : ''}`;
+}
+function vNeed() {
   const r = S.data.requests;
-  $('main').innerHTML = r.length ? r.map(q => `<div class="card">
-      <div class="row"><div class="t">${esc(q.client)}</div>${q.escalated ? '<span class="badge b-over">у руководителя</span>' : q.repeated ? '<span class="badge b-wait">повтор отправлен</span>' : '<span class="badge">открыт</span>'}</div>
-      <div>${esc(q.text)}</div>
-      <div class="muted">${esc(q.task)} · с ${esc(q.date)}</div>
-      <button class="btn sec2" data-close="${esc(q.id)}">Клиент прислал — закрыть</button></div>`).join('')
-    : '<div class="empty">Открытых запросов нет</div>';
-  $('main').querySelectorAll('[data-close]').forEach(b => b.onclick = async () => { busy(b); if (!(await load('request.close', { id: b.dataset.close }))) unbusy(b, 'Клиент прислал — закрыть'); });
+  $('content').innerHTML = `<h1 class="hero" style="margin-top:0">Что нужно от вас</h1><p class="lead">Без этого бухгалтер не может закончить работу за период.</p>
+    ${r.length ? r.map(x => `<div class="panel pad" style="margin-bottom:10px"><div class="muted small">с ${esc(x.date)}</div><div style="margin-top:4px">${esc(x.text)}</div></div>`).join('') +
+      '<p class="muted small">Документы и ответы присылайте в чат с ботом АдалинКонсалт — мы передадим их вашему бухгалтеру.</p>' : '<div class="panel empty">Сейчас от вас ничего не нужно</div>'}`;
 }
-function renderClients() {
-  const c = S.data.clientCards;
-  $('main').innerHTML = c.length ? c.map(x => `<div class="card">
-      <div class="row"><div class="t">${esc(x.name)}</div><span class="badge">${esc(x.status)}</span></div>
-      <div class="kv" style="margin-top:6px">
-        <div>Тип, режим</div><div>${esc(x.type)}, ${esc(x.regime)}</div>
-        <div>Плательщик НДС</div><div>${esc(x.vat)}</div>
-        <div>Работники</div><div>${esc(x.staff)}${String(x.staff) === 'да' ? ` (ЗП ${esc(x.zpDay)}-го, аванс ${esc(x.avDay)}-го)` : ''}</div>
-        <div>Платёжки ЗП / налоги</div><div>${esc(x.payZp)} / ${esc(x.payTax)}</div>
-        <div>Контакт</div><div>${esc(x.contact)}</div>
-        <div>Telegram клиента</div><div>${esc(x.telegram)}</div>
-        ${S.data.role === 'руководитель' ? `<div>Ответственный</div><div>${esc(x.employee)}</div>` : ''}
-      </div></div>`).join('') : '<div class="empty">Нет закреплённых клиентов</div>';
+function vReports() {
+  $('content').innerHTML = `<div class="panel empty">${S.data.role === 'клиент' ? 'Здесь будут отчёты о выполненной работе за каждый месяц.' : 'Отчёты клиентам появятся на этапе 3: черновик собирается из выполненных задач, вы утверждаете, клиент получает PDF.'}</div>`;
 }
 
-// ---------- клиент ----------
-function renderDeadlines() {
-  const d = S.data.deadlines;
-  $('main').innerHTML = '<div class="sec">Ближайшие 45 дней</div>' + (d.length ? d.map(x => `<div class="card">
-      <div class="row"><div class="t">${esc(x.date)}</div><div class="sum">${esc(x.sum)} BYN</div></div>
-      <div>${esc(x.what)}</div>
-      ${x.extra ? `<div class="muted">${esc(x.extra)}</div>` : ''}
-      ${x.prepared ? '<div class="muted">Платёжка подготовлена в банк-клиенте — подпишите её.</div>' : ''}
-    </div>`).join('') : '<div class="empty">Ближайших платежей нет</div>');
+// ===================== боковая панель и окна =====================
+function showDrawer(html, rerender, wide) {
+  const dr = $('drawer'); dr.innerHTML = html; dr.classList.toggle('wide', !!wide);
+  dr.classList.add('open'); $('shade').classList.add('open');
+  S.drawer = rerender || null;
 }
-function renderNeed() {
-  const r = S.data.requests;
-  $('main').innerHTML = r.length ? r.map(x => `<div class="card"><div class="muted">${esc(x.date)}</div><div>${esc(x.text)}</div></div>`).join('') +
-    '<div class="muted" style="padding:4px 6px">Документы и ответы присылайте в чат с ботом — мы передадим их вашему бухгалтеру.</div>'
-    : '<div class="empty">Сейчас от вас ничего не нужно</div>';
-}
-function renderReports() { $('main').innerHTML = '<div class="empty">Здесь будут отчёты о выполненной работе.</div>'; }
+function closeDrawer() { const dr = $('drawer'); if (!dr) return; dr.classList.remove('open'); $('shade').classList.remove('open'); S.drawer = null; }
+$('shade').onclick = closeDrawer;
+function openModal(html) { $('modalWrap').innerHTML = `<div class="modal-shade" id="mshade"></div><div class="modal" role="dialog">${html}</div>`; $('mshade').onclick = closeModal; }
+function closeModal() { $('modalWrap').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('modalWrap').innerHTML) closeModal(); else closeDrawer(); } });
+if (location.hash) S.view = location.hash.slice(1);
 
-load();
+start();
+
 </script>
 </body>
 </html>

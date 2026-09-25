@@ -905,20 +905,23 @@ function vTime() {
   if (mgr && S.temp) ses = ses.filter(s => s.person === S.temp);
   const sum = a => a.reduce((x, s) => x + s.min, 0);
   const total = sum(ses), taskIds = [...new Set(ses.map(s => s.taskId))];
-  const persons = [...new Set((d.sessions || []).map(s => s.person))];
+  // все сотрудники (даже без записанного времени), руководитель и все, у кого есть сессии
+  const persons = [...new Set([...(d.employees || []), ...(mgr && d.me ? [d.me] : []), ...(d.sessions || []).map(s => s.person)].filter(Boolean))];
   const t = parseD(d.today);
   const monthName = x => x.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
   const perLbl = { today: 'сегодня', week: 'эта неделя', month: monthName(t), prev: monthName(new Date(t.getFullYear(), t.getMonth() - 1, 1)), all: 'всё время' };
-  const fee = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  // «BYN за час» имеет смысл только по всей команде: при выборе одного сотрудника колонку прячем
+  const fee = S.temp ? null : (d.moneyFields || []).find(f => /абонент/i.test(f));
   const monthly = per === 'month' || per === 'prev';
   const group = (key) => { const m = {}; ses.forEach(s => { const k = key(s); (m[k] = m[k] || []).push(s); }); return Object.entries(m).sort((a, b) => sum(b[1]) - sum(a[1])); };
   const taskBy = {}; d.tasks.forEach(x => { taskBy[x.id] = x; });
   // по сотрудникам
-  const byEmp = group(s => s.person).map(([p, a]) => {
+  const byEmp = (S.temp ? [S.temp] : persons).map(p => [p, ses.filter(s => s.person === p)]).sort((x, y) => sum(y[1]) - sum(x[1])).map(([p, a]) => {
+    if (!a.length) return `<tr class="click" data-person="${esc(p)}"><td class="nm"><b>${esc(p)}</b></td><td class="num muted" data-l="Время">—</td><td class="num muted" data-l="Сессий">0</td><td class="num muted" data-l="Задач">0</td><td class="num muted" data-l="Среднее на задачу">—</td><td class="num muted small" data-l="Факт к плану">время не записано</td></tr>`;
     const ids = [...new Set(a.map(s => s.taskId))];
     const withPlan = ids.map(i => taskBy[i]).filter(x => x && x.plan !== '');
     const planSum = withPlan.reduce((x, y) => x + y.plan, 0), factSum = withPlan.reduce((x, y) => x + y.fact, 0);
-    return `<tr><td class="nm"><b>${esc(p)}</b></td><td class="num" data-l="Время"><b>${fmtMin(sum(a))}</b></td><td class="num" data-l="Сессий">${a.length}</td><td class="num" data-l="Задач">${ids.length}</td>
+    return `<tr class="click" data-person="${esc(p)}"><td class="nm"><b>${esc(p)}</b></td><td class="num" data-l="Время"><b>${fmtMin(sum(a))}</b></td><td class="num" data-l="Сессий">${a.length}</td><td class="num" data-l="Задач">${ids.length}</td>
       <td class="num" data-l="Среднее на задачу">${fmtMin(sum(a) / ids.length)}</td>
       <td class="num" data-l="Факт к плану">${withPlan.length ? `<span style="color:${factSum > planSum ? 'var(--danger)' : 'var(--ok)'}">${Math.round(factSum / planSum * 100)}%</span><div class="sub">${plural(withPlan.length, 'задача', 'задачи', 'задач')} с планом</div>` : '—'}</td></tr>`;
   }).join('');
@@ -941,23 +944,23 @@ function vTime() {
     return `<tr><td class="nm">${esc(ruleName(k))}</td><td class="num" data-l="Задач">${a.length}</td><td class="num" data-l="Среднее факт"><b>${fmtMin(a.reduce((x, y) => x + y.fact, 0) / a.length)}</b></td>
       <td class="num" data-l="Средний план">${pl.length ? fmtMin(pl.reduce((x, y) => x + y.plan, 0) / pl.length) : '—'}</td></tr>`;
   }).join('');
-  const running = (d.sessions || []).filter(s => s.open);
+  const running = (d.sessions || []).filter(s => s.open && (!S.temp || s.person === S.temp));
   const long = ses.filter(s => s.min > 240);
   const list = ses.slice().sort((a, b) => b.start - a.start).slice(0, 300);
   $('content').innerHTML = `
     <div class="toolbar"><div class="chips" id="tper">${[['today', 'Сегодня'], ['week', 'Неделя'], ['month', 'Этот месяц'], ['prev', 'Прошлый месяц'], ['all', 'Всё']].map(x => `<button data-p="${x[0]}" class="${x[0] === per ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
       ${mgr ? `<select id="temp"><option value="">Все сотрудники</option>${persons.map(p => `<option ${p === S.temp ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>` : ''}</div>
     <div class="kpis">
-      <div class="panel kpi"><div class="l">Время — ${esc(perLbl[per])}</div><div class="v">${fmtMin(total)}</div><div class="s">${(total / 60).toFixed(1).replace('.', ',')} ч</div></div>
+      <div class="panel kpi"><div class="l">${S.temp ? esc(S.temp) + ' — ' : 'Время — '}${esc(perLbl[per])}</div><div class="v">${fmtMin(total)}</div><div class="s">${(total / 60).toFixed(1).replace('.', ',')} ч</div></div>
       <div class="panel kpi"><div class="l">Рабочих сессий</div><div class="v">${ses.length}</div></div>
       <div class="panel kpi"><div class="l">Задач с учётом времени</div><div class="v">${taskIds.length}</div></div>
       <div class="panel kpi"><div class="l">Среднее на задачу</div><div class="v">${taskIds.length ? fmtMin(total / taskIds.length) : '—'}</div></div>
       <div class="panel kpi ${long.length ? 'amber' : ''}"><div class="l">${mgr ? 'Сейчас работают' : 'Длинные сессии (> 4 ч)'}</div><div class="v">${mgr ? running.length : long.length}</div><div class="s">${mgr ? running.map(s => esc(s.person)).join(', ') || 'никто' : 'проверьте, не забыт ли таймер'}</div></div>
     </div>
-    ${!ses.length ? '<div class="panel empty">За этот период времени не записано. Время начинает считаться кнопкой «Начать работу» в задаче.</div>' : `
+    ${mgr ? `<div class="stack"><div class="panel pad"><div class="ph"><h3>По сотрудникам</h3><span>${S.temp ? '<button class="linkbtn" id="tall">← все сотрудники</button>' : 'нажмите строку, чтобы открыть одного сотрудника; факт к плану — по задачам с планом'}</span></div>
+        <table class="tbl" style="margin-top:6px"><thead><tr><th>Сотрудник</th><th class="num">Время</th><th class="num">Сессий</th><th class="num">Задач</th><th class="num">Среднее на задачу</th><th class="num">Факт к плану</th></tr></thead><tbody>${byEmp}</tbody></table></div></div>` : ''}
+    ${!ses.length ? `<div class="panel empty">${S.temp ? esc(S.temp) + ': за этот период' : 'За этот период'} время не записано. Время начинает считаться кнопкой «Начать работу» в задаче.</div>` : `
     <div class="${mgr ? 'stack' : 'cols'}">
-      ${mgr ? `<div class="panel pad"><div class="ph"><h3>По сотрудникам</h3><span>факт к плану — по задачам, где задан план</span></div>
-        <table class="tbl" style="margin-top:6px"><thead><tr><th>Сотрудник</th><th class="num">Время</th><th class="num">Сессий</th><th class="num">Задач</th><th class="num">Среднее на задачу</th><th class="num">Факт к плану</th></tr></thead><tbody>${byEmp}</tbody></table></div>` : ''}
       <div class="panel pad"><div class="ph"><h3>По клиентам</h3><span>${mgr && fee ? (monthly ? 'BYN за час = абон. плата ÷ часы за месяц' : 'BYN за час считается за месяц') : ''}</span></div>
         <table class="tbl" style="margin-top:6px"><thead><tr><th>Клиент</th><th class="num">Время</th><th class="num">Задач</th>${mgr && fee ? '<th class="num">Абон. плата</th><th class="num">BYN за час</th>' : ''}</tr></thead><tbody>${byCl}</tbody></table></div>
       ${!mgr ? `<div class="panel pad"><div class="ph"><h3>По видам задач</h3><span>за всё время</span></div><table class="tbl" style="margin-top:6px"><thead><tr><th>Вид</th><th class="num">Задач</th><th class="num">Среднее факт</th><th class="num">Средний план</th></tr></thead><tbody>${byKind}</tbody></table></div>` : ''}
@@ -974,6 +977,8 @@ function vTime() {
       </tbody></table></div>`}`;
   $('tper').onclick = e => { const b = e.target.closest('button'); if (b) { S.tper = b.dataset.p; vTime(); } };
   if ($('temp')) $('temp').onchange = e => { S.temp = e.target.value; vTime(); };
+  $('content').querySelectorAll('[data-person]').forEach(r => r.onclick = () => { S.temp = S.temp === r.dataset.person ? '' : r.dataset.person; vTime(); window.scrollTo(0, 0); });
+  if ($('tall')) $('tall').onclick = () => { S.temp = ''; vTime(); };
   $('content').querySelectorAll('[data-se]').forEach(b => b.onclick = () => editSession(b.dataset.se));
   $('content').querySelectorAll('[data-cl]').forEach(r => r.onclick = () => openClient(r.dataset.cl));
   bindTaskRows($('content'));

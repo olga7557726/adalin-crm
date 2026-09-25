@@ -65,6 +65,8 @@ h1.hero { font-size: 26px; margin: 6px 0 4px; letter-spacing: -.01em; }
 .minis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
 .mini { padding: 10px 14px; } .mini .l { font-size: 12px; color: var(--muted); } .mini .v { font-size: 18px; font-weight: 600; }
 .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.stack { display: grid; gap: 16px; margin-bottom: 16px; }
+.cols > .panel, .stack > .panel { min-width: 0; overflow-x: auto; }
 .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
 .ph h3 { margin: 0; font-size: 15px; } .ph span { color: var(--muted); font-size: 12px; }
 .attn { list-style: none; margin: 8px 0 0; padding: 0; }
@@ -148,6 +150,18 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .toast.err { background: var(--danger); }
 .loading { padding: 60px; text-align: center; color: var(--muted); }
 
+.timerbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #eaf4ee; color: #14532d; border-bottom: 1px solid #cfe6d8; padding: 8px 28px; font-size: 13px; }
+.timerbar .tick { font-variant-numeric: tabular-nums; font-size: 15px; }
+.timerbar .tb-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1e7a4c; margin-right: 6px; animation: pulse 1.4s infinite; vertical-align: middle; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(30,122,76,.5); } 70% { box-shadow: 0 0 0 7px rgba(30,122,76,0); } 100% { box-shadow: 0 0 0 0 rgba(30,122,76,0); } }
+.tplan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.tplan > div { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.tplan span { display: block; font-size: 12px; color: var(--muted); }
+.tplan b { font-size: 15px; }
+.tbl.mini-t td { padding: 6px 6px; font-size: 13px; }
+.btn .tick { font-variant-numeric: tabular-nums; color: #fff; opacity: .85; }
+
 /* ---------- вход ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
 .login .card { width: min(380px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
@@ -170,7 +184,8 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
   .mnav button { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 6px 12px; cursor: pointer; }
   .mnav button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
   .top { padding: 12px 16px; position: static; } .content { padding: 16px 16px 50px; }
-  .testbar, .viewbar { padding: 6px 16px; }
+  .testbar, .viewbar, .timerbar { padding: 6px 16px; }
+  .tbl.mini-t tr { display: grid; grid-template-columns: auto auto 1fr; } 
   .kpis, .minis { grid-template-columns: 1fr 1fr; }
   .cols, .regs { grid-template-columns: 1fr; }
   .stats { grid-template-columns: repeat(3, 1fr); }
@@ -311,14 +326,14 @@ function navFor(d) {
   if (d.role === 'клиент') return [
     { sec: null, items: [['deadlines', 'Сроки платежей'], ['need', 'Что нужно от вас', d.requests.length], ['reports', 'Отчёты']] }];
   if (d.role === 'сотрудник') return [
-    { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты']] },
+    { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты'], ['time', 'Моё время']] },
     { sec: 'Справочники', items: [['regs', 'Регламенты']] }];
   return [
     { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', null, 'этап 4'], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', null, 'этап 3']] },
-    { sec: 'Управление', items: [['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
+    { sec: 'Управление', items: [['time', 'Рабочее время'], ['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
 }
 const TITLES = { dash: 'Аналитика', leads: 'Заявки', clients: 'Клиенты', tasks: 'Задачи', requests: 'Запросы клиентам', reports: 'Отчёты',
-  users: 'Сотрудники и доступы', regs: 'Регламенты', deadlines: 'Сроки платежей', need: 'Что нужно от вас' };
+  users: 'Сотрудники и доступы', regs: 'Регламенты', deadlines: 'Сроки платежей', need: 'Что нужно от вас', time: 'Рабочее время' };
 
 function render() {
   const d = S.data; if (!d) return;
@@ -352,6 +367,7 @@ function render() {
       <div class="top"><h2>${esc(TITLES[S.view] || '')}</h2><div class="right">${d.test ? '<span class="pill warn">тестовый режим</span>' : ''}<span>${esc(longDate(d.today))}</span></div></div>
       ${d.test && d.role !== 'клиент' ? '<div class="testbar">Тестовый режим: всё, что адресовано клиентам и сотрудникам, приходит только руководителю с пометкой [ТЕСТ].</div>' : ''}
       ${d.viaManager ? `<div class="viewbar">Вы смотрите глазами: ${esc(d.role === 'клиент' ? 'клиент ' + d.clientName : 'сотрудник ' + d.name)}. Изменения сохраняются по-настоящему.</div>` : ''}
+      ${d.running ? timerBar(d.running) : ''}
       <div class="content" id="content"></div>
     </div></div>`;
   document.querySelectorAll('#nav button, #mnav button').forEach(b => b.onclick = () => { if (b.disabled) return; S.view = b.dataset.v; S.drawer = null; location.hash = S.view; render(); window.scrollTo(0, 0); });
@@ -363,7 +379,9 @@ function render() {
   };
   if ($('logout')) $('logout').onclick = async () => { try { await call('logout'); } catch (e) { /* уже вышли */ } logoutLocal(); renderLogin(); };
   if ($('chpw')) $('chpw').onclick = () => renderPassword(false);
-  ({ dash: vDash, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs,
+  if ($('tbStop')) $('tbStop').onclick = async () => { const r = await act('time.stop', {}, $('tbStop')); if (r) toast(r.timer.stoppedMin ? 'Записано: ' + fmtMin(r.timer.stoppedMin) : 'Меньше минуты — не записано'); };
+  if ($('tbOpen')) $('tbOpen').onclick = () => openTask(d.running.taskId);
+  ({ dash: vDash, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs, time: vTime,
      deadlines: vDeadlines, need: vNeed, reports: vReports })[S.view]();
   if (S.drawer) S.drawer();
 }
@@ -398,12 +416,13 @@ function periods() { return [...new Set((S.data.tasks || []).map(t => t.period).
 function taskRows(list, opts = {}) {
   const mgr = S.data.role === 'руководитель';
   if (!list.length) return '<div class="empty">Задач нет</div>';
-  return `<table class="tbl"><thead><tr>${opts.noClient ? '' : '<th>Клиент</th>'}<th>Задача</th><th>Срок</th><th class="num">Сумма, BYN</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Статус</th></tr></thead><tbody>` +
+  return `<table class="tbl"><thead><tr>${opts.noClient ? '' : '<th>Клиент</th>'}<th>Задача</th><th>Срок</th><th class="num">Сумма, BYN</th><th class="num">Время</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Статус</th></tr></thead><tbody>` +
     list.map(t => `<tr class="click" data-task="${esc(t.id)}">
       ${opts.noClient ? '' : `<td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>`}
       <td>${esc(t.title)}<div class="sub">${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}${t.request ? ' · запрос клиенту от ' + esc(t.request.date) : ''}</div></td>
       <td data-l="Срок">${esc(t.deadline)}${t.payDate && t.payDate !== t.deadline ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
       <td class="num" data-l="Сумма">${sumText(t) || ''}</td>
+      <td class="num" data-l="Время">${timeCell(t)}</td>
       ${mgr ? `<td data-l="Сотрудник">${esc(t.employee)}</td>` : ''}
       <td>${badge(t)}</td></tr>`).join('') + '</tbody></table>';
 }
@@ -533,6 +552,7 @@ function openTask(id) {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge(t)}${t.closed ? `<span class="muted small">закрыта ${esc(t.closed)}</span>` : ''}<span class="grow" style="flex:1"></span>
         ${reg ? `<button class="btn ghost sm" id="openReg">Открыть регламент</button>` : `<span class="muted small">регламент не привязан</span>`}</div>
       <label>Статус</label><div class="chips" id="seg">${['к выполнению', 'в работе', 'выполнено'].map(s => `<button type="button" data-s="${s}" class="${s === st ? 'on' : ''}">${s}</button>`).join('')}${st === 'ожидает клиента' ? '<button type="button" class="on" data-s="ожидает клиента">ждём клиента</button>' : ''}</div>
+      ${timeBlock(t)}
       ${sums}${pay}
       <label>Итог для клиента (попадёт в отчёт)</label><input type="text" data-f="Итог для клиента" value="${esc(t['Итог для клиента'])}" placeholder="Например: декларация подана 20.10">
       <label>Внутренний комментарий (клиент не видит)</label><textarea data-f="Внутренний комментарий">${esc(t['Внутренний комментарий'])}</textarea>
@@ -543,6 +563,7 @@ function openTask(id) {
   $('seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; status = b.dataset.s; $('seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   $('dx').onclick = $('dx2').onclick = closeDrawer;
   if ($('openReg')) $('openReg').onclick = () => showReg(reg);
+  bindTimeBlock(t);
   $('save').onclick = async () => {
     const fields = { 'Статус': status };
     $('drawer').querySelectorAll('[data-f]').forEach(el => fields[el.dataset.f] = el.value);
@@ -794,6 +815,168 @@ function bindCopy() {
     try { await navigator.clipboard.writeText(el.value); } catch (e) { try { document.execCommand('copy'); } catch (e2) { /* выделено — можно Ctrl+C */ } }
     toast('Скопировано');
   });
+}
+
+// ===================== РАБОЧЕЕ ВРЕМЯ =====================
+function plural(n, one, few, many) { const a = Math.abs(n) % 100, b = a % 10; return n + ' ' + (a > 10 && a < 20 ? many : b > 1 && b < 5 ? few : b === 1 ? one : many); }
+function fmtMin(m) {
+  m = Math.round(Number(m) || 0);
+  if (m < 60) return m + ' мин';
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + ' ч' + (r ? ' ' + r + ' мин' : '');
+}
+const hhmm = ms => ms ? new Date(ms).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+function clock(ms) { const s = Math.max(0, Math.floor((Date.now() - ms) / 1000)); const p = n => String(n).padStart(2, '0'); return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s / 60) % 60) + ':' + p(s % 60); }
+function timerBar(r) {
+  return `<div class="timerbar"><span class="pulse"></span><b class="tick" data-start="${r.start}">${clock(r.start)}</b>
+    <span class="tb-t">${esc(r.client)} — ${esc(r.task)}</span><span style="flex:1"></span>
+    <button class="btn ghost sm" id="tbOpen">Открыть задачу</button><button class="btn sm" id="tbStop">Остановить</button></div>`;
+}
+setInterval(() => document.querySelectorAll('.tick[data-start]').forEach(el => { el.textContent = clock(Number(el.dataset.start)); }), 1000);
+function timeCell(t) {
+  const run = S.data.running && S.data.running.taskId === t.id;
+  if (!t.fact && t.plan === '' && !run) return '';
+  const over = t.plan !== '' && t.fact > t.plan;
+  return `${run ? '<span class="pulse"></span>' : ''}<span style="${over ? 'color:var(--danger)' : ''}">${t.fact ? fmtMin(t.fact) : '0'}</span>${t.plan !== '' ? `<div class="sub">план ${fmtMin(t.plan)}</div>` : ''}`;
+}
+function timeBlock(t) {
+  const d = S.data, mgr = d.role === 'руководитель' && !d.viaManager;
+  const run = d.running && d.running.taskId === t.id;
+  const ses = (d.sessions || []).filter(s => s.taskId === t.id).sort((a, b) => b.start - a.start);
+  const dev = t.plan !== '' ? t.fact - t.plan : null;
+  const canTimer = !d.viaManager && !isDone(t);
+  return `<div class="box" style="margin-top:14px"><div class="ph"><h4>Рабочее время</h4>${canTimer ? (run
+      ? `<button class="btn sm" id="tStop">Остановить · <span class="tick" data-start="${d.running.start}">${clock(d.running.start)}</span></button>`
+      : `<button class="btn sm" id="tStart">▶ Начать работу</button>`) : ''}</div>
+    <div class="tplan">
+      <div><span>План</span>${mgr ? `<input type="text" inputmode="numeric" data-f="Плановое время, мин" value="${esc(t.plan)}" placeholder="мин" style="width:80px">` : `<b>${t.plan !== '' ? fmtMin(t.plan) : '—'}</b>`}</div>
+      <div><span>Факт</span><b>${fmtMin(t.fact)}</b></div>
+      <div><span>Отклонение</span><b style="color:${dev > 0 ? 'var(--danger)' : dev < 0 ? 'var(--ok)' : 'inherit'}">${dev === null ? '—' : (dev > 0 ? '+' : dev < 0 ? '−' : '') + fmtMin(Math.abs(dev))}</b></div>
+    </div>
+    ${ses.length ? `<table class="tbl mini-t"><tbody>${ses.map(s => `<tr><td>${esc(s.date)}</td><td>${hhmm(s.start)}–${s.open ? 'идёт' : hhmm(s.end)}</td><td class="num">${fmtMin(s.min)}</td>
+      <td class="sub">${esc(s.person)}${s.how && s.how !== 'таймер' ? ' · ' + esc(s.how) : ''}${s.comment ? ' · ' + esc(s.comment) : ''}</td>
+      <td class="num">${!s.open && canEditSession(s) ? `<button class="linkbtn" data-se="${esc(s.id)}">изменить</button>` : ''}</td></tr>`).join('')}</tbody></table>` : '<div class="muted small" style="margin-top:8px">Времени по задаче пока нет.</div>'}
+    ${!d.viaManager ? '<button class="linkbtn" id="tAdd" style="margin-top:8px">+ Добавить время вручную</button>' : ''}
+    ${mgr ? '<div class="muted small">План сохраняется кнопкой «Сохранить» ниже.</div>' : ''}</div>`;
+}
+function canEditSession(s) { const d = S.data; if (d.viaManager) return false; return d.role === 'руководитель' || s.person === d.name; }
+function bindTimeBlock(t) {
+  if ($('tStart')) $('tStart').onclick = async () => {
+    const r = await act('time.start', { taskId: t.id }, $('tStart'));
+    if (r) toast(r.timer && r.timer.stopped ? `Таймер запущен. Остановлен предыдущий: «${r.timer.stopped.task}» — ${fmtMin(r.timer.stopped.min)}` : 'Таймер запущен');
+  };
+  if ($('tStop')) $('tStop').onclick = async () => { const r = await act('time.stop', {}, $('tStop')); if (r) toast(r.timer.stoppedMin ? 'Записано: ' + fmtMin(r.timer.stoppedMin) : 'Меньше минуты — не записано'); };
+  if ($('tAdd')) $('tAdd').onclick = () => editSession(null, t.id);
+  $('drawer').querySelectorAll('[data-se]').forEach(b => b.onclick = () => editSession(b.dataset.se));
+}
+function editSession(id, taskId) {
+  const d = S.data, s = id ? d.sessions.find(x => x.id === id) : null;
+  openModal(`<h3>${s ? 'Изменить время' : 'Добавить время вручную'}</h3>
+    <div class="muted small">${esc(s ? s.client + ' — ' + s.task : (d.tasks.find(t => t.id === taskId) || {}).title || '')}</div>
+    <label>Дата (ДД.ММ.ГГГГ)</label><input type="text" id="sd" value="${esc(s ? s.date : d.today)}">
+    <div class="g2"><div><label>Начало (ЧЧ:ММ)</label><input type="text" id="ss" value="${esc(s ? hhmm(s.start) : '')}" placeholder="09:00"></div>
+    <div><label>Окончание (ЧЧ:ММ)</label><input type="text" id="se" value="${esc(s ? hhmm(s.end) : '')}" placeholder="09:45"></div></div>
+    <label>Комментарий</label><input type="text" id="sc" value="${esc(s ? s.comment : '')}" placeholder="необязательно">
+    <div class="actions"><button class="btn" id="ssave">Сохранить</button><button class="btn ghost" id="sx">Отмена</button><span style="flex:1"></span>${s ? '<button class="btn danger" id="sdel">Удалить</button>' : ''}</div>`);
+  $('sx').onclick = closeModal;
+  $('ssave').onclick = async () => {
+    const r = await act('time.save', { id: id || '', taskId: taskId || '', date: $('sd').value.trim(), start: $('ss').value.trim(), end: $('se').value.trim(), comment: $('sc').value }, $('ssave'));
+    if (r) { closeModal(); toast('Время сохранено'); }
+  };
+  if ($('sdel')) $('sdel').onclick = async () => {
+    if ($('sdel').dataset.sure !== '1') { $('sdel').dataset.sure = '1'; $('sdel').textContent = 'Точно удалить?'; return; }
+    if (await act('time.delete', { id }, $('sdel'))) { closeModal(); toast('Запись удалена'); }
+  };
+}
+function inPeriod(dateStr, per) {
+  const d = parseD(dateStr), t = parseD(S.data.today);
+  if (!d || !t) return false;
+  if (per === 'today') return d.getTime() === t.getTime();
+  if (per === 'week') { const mon = new Date(t); mon.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return d >= mon && d <= t; }
+  if (per === 'month') return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth();
+  if (per === 'prev') { const p = new Date(t.getFullYear(), t.getMonth() - 1, 1); return d.getFullYear() === p.getFullYear() && d.getMonth() === p.getMonth(); }
+  return true;
+}
+function vTime() {
+  const d = S.data, mgr = d.role === 'руководитель';
+  const per = S.tper || 'month';
+  S.temp = S.temp || '';
+  let ses = (d.sessions || []).filter(s => inPeriod(s.date, per) && (mgr || s.person === d.name));
+  if (mgr && S.temp) ses = ses.filter(s => s.person === S.temp);
+  const sum = a => a.reduce((x, s) => x + s.min, 0);
+  const total = sum(ses), taskIds = [...new Set(ses.map(s => s.taskId))];
+  const persons = [...new Set((d.sessions || []).map(s => s.person))];
+  const t = parseD(d.today);
+  const monthName = x => x.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
+  const perLbl = { today: 'сегодня', week: 'эта неделя', month: monthName(t), prev: monthName(new Date(t.getFullYear(), t.getMonth() - 1, 1)), all: 'всё время' };
+  const fee = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  const monthly = per === 'month' || per === 'prev';
+  const group = (key) => { const m = {}; ses.forEach(s => { const k = key(s); (m[k] = m[k] || []).push(s); }); return Object.entries(m).sort((a, b) => sum(b[1]) - sum(a[1])); };
+  const taskBy = {}; d.tasks.forEach(x => { taskBy[x.id] = x; });
+  // по сотрудникам
+  const byEmp = group(s => s.person).map(([p, a]) => {
+    const ids = [...new Set(a.map(s => s.taskId))];
+    const withPlan = ids.map(i => taskBy[i]).filter(x => x && x.plan !== '');
+    const planSum = withPlan.reduce((x, y) => x + y.plan, 0), factSum = withPlan.reduce((x, y) => x + y.fact, 0);
+    return `<tr><td class="nm"><b>${esc(p)}</b></td><td class="num" data-l="Время"><b>${fmtMin(sum(a))}</b></td><td class="num" data-l="Сессий">${a.length}</td><td class="num" data-l="Задач">${ids.length}</td>
+      <td class="num" data-l="Среднее на задачу">${fmtMin(sum(a) / ids.length)}</td>
+      <td class="num" data-l="Факт к плану">${withPlan.length ? `<span style="color:${factSum > planSum ? 'var(--danger)' : 'var(--ok)'}">${Math.round(factSum / planSum * 100)}%</span><div class="sub">${plural(withPlan.length, 'задача', 'задачи', 'задач')} с планом</div>` : '—'}</td></tr>`;
+  }).join('');
+  // по клиентам
+  const byCl = group(s => s.clientCode).map(([code, a]) => {
+    const c = d.clientCards.find(x => x['Код'] === code) || {};
+    const f = fee ? Number(c[fee]) || 0 : 0, h = sum(a) / 60;
+    return `<tr class="click" data-cl="${esc(code)}"><td class="nm"><b>${esc(a[0].client)}</b></td><td class="num" data-l="Время"><b>${fmtMin(sum(a))}</b></td><td class="num" data-l="Задач">${new Set(a.map(s => s.taskId)).size}</td>
+      ${mgr && fee ? `<td class="num" data-l="Абон. плата">${f ? money(f) : '—'}</td><td class="num" data-l="BYN за час">${monthly && f && h ? money(f / h) : '—'}</td>` : ''}</tr>`;
+  }).join('');
+  // по видам задач (все сессии, не только за период) — чтобы видеть нормы
+  const kinds = {};
+  d.tasks.filter(x => x.fact > 0 && (!mgr || !S.temp || x.employee === S.temp)).forEach(x => {
+    const k = x.rule || '_manual';
+    (kinds[k] = kinds[k] || []).push(x);
+  });
+  const ruleName = k => k === '_manual' ? 'Разовые задачи' : ((d.rules.find(r => r.code === k) || {}).name || k);
+  const byKind = Object.entries(kinds).sort((a, b) => b[1].length - a[1].length).map(([k, a]) => {
+    const pl = a.filter(x => x.plan !== '');
+    return `<tr><td class="nm">${esc(ruleName(k))}</td><td class="num" data-l="Задач">${a.length}</td><td class="num" data-l="Среднее факт"><b>${fmtMin(a.reduce((x, y) => x + y.fact, 0) / a.length)}</b></td>
+      <td class="num" data-l="Средний план">${pl.length ? fmtMin(pl.reduce((x, y) => x + y.plan, 0) / pl.length) : '—'}</td></tr>`;
+  }).join('');
+  const running = (d.sessions || []).filter(s => s.open);
+  const long = ses.filter(s => s.min > 240);
+  const list = ses.slice().sort((a, b) => b.start - a.start).slice(0, 300);
+  $('content').innerHTML = `
+    <div class="toolbar"><div class="chips" id="tper">${[['today', 'Сегодня'], ['week', 'Неделя'], ['month', 'Этот месяц'], ['prev', 'Прошлый месяц'], ['all', 'Всё']].map(x => `<button data-p="${x[0]}" class="${x[0] === per ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
+      ${mgr ? `<select id="temp"><option value="">Все сотрудники</option>${persons.map(p => `<option ${p === S.temp ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>` : ''}</div>
+    <div class="kpis">
+      <div class="panel kpi"><div class="l">Время — ${esc(perLbl[per])}</div><div class="v">${fmtMin(total)}</div><div class="s">${(total / 60).toFixed(1).replace('.', ',')} ч</div></div>
+      <div class="panel kpi"><div class="l">Рабочих сессий</div><div class="v">${ses.length}</div></div>
+      <div class="panel kpi"><div class="l">Задач с учётом времени</div><div class="v">${taskIds.length}</div></div>
+      <div class="panel kpi"><div class="l">Среднее на задачу</div><div class="v">${taskIds.length ? fmtMin(total / taskIds.length) : '—'}</div></div>
+      <div class="panel kpi ${long.length ? 'amber' : ''}"><div class="l">${mgr ? 'Сейчас работают' : 'Длинные сессии (> 4 ч)'}</div><div class="v">${mgr ? running.length : long.length}</div><div class="s">${mgr ? running.map(s => esc(s.person)).join(', ') || 'никто' : 'проверьте, не забыт ли таймер'}</div></div>
+    </div>
+    ${!ses.length ? '<div class="panel empty">За этот период времени не записано. Время начинает считаться кнопкой «Начать работу» в задаче.</div>' : `
+    <div class="${mgr ? 'stack' : 'cols'}">
+      ${mgr ? `<div class="panel pad"><div class="ph"><h3>По сотрудникам</h3><span>факт к плану — по задачам, где задан план</span></div>
+        <table class="tbl" style="margin-top:6px"><thead><tr><th>Сотрудник</th><th class="num">Время</th><th class="num">Сессий</th><th class="num">Задач</th><th class="num">Среднее на задачу</th><th class="num">Факт к плану</th></tr></thead><tbody>${byEmp}</tbody></table></div>` : ''}
+      <div class="panel pad"><div class="ph"><h3>По клиентам</h3><span>${mgr && fee ? (monthly ? 'BYN за час = абон. плата ÷ часы за месяц' : 'BYN за час считается за месяц') : ''}</span></div>
+        <table class="tbl" style="margin-top:6px"><thead><tr><th>Клиент</th><th class="num">Время</th><th class="num">Задач</th>${mgr && fee ? '<th class="num">Абон. плата</th><th class="num">BYN за час</th>' : ''}</tr></thead><tbody>${byCl}</tbody></table></div>
+      ${!mgr ? `<div class="panel pad"><div class="ph"><h3>По видам задач</h3><span>за всё время</span></div><table class="tbl" style="margin-top:6px"><thead><tr><th>Вид</th><th class="num">Задач</th><th class="num">Среднее факт</th><th class="num">Средний план</th></tr></thead><tbody>${byKind}</tbody></table></div>` : ''}
+    </div>
+    ${mgr ? `<div class="panel pad" style="margin-bottom:16px"><div class="ph"><h3>По видам задач — основа для норм времени</h3><span>все задачи с учётом времени; норму можно вписать в «Правила сроков», колонка «Плановое время, мин»</span></div>
+      <table class="tbl" style="margin-top:6px"><thead><tr><th>Вид задачи</th><th class="num">Задач</th><th class="num">Среднее факт</th><th class="num">Средний план</th></tr></thead><tbody>${byKind}</tbody></table></div>` : ''}
+    <div class="panel"><div class="pad" style="padding-bottom:0"><div class="ph"><h3>Сессии</h3><span>${list.length < ses.length ? 'последние 300' : ''}</span></div></div>
+      <table class="tbl"><thead><tr><th>Дата</th><th>Время</th><th class="num">Длительность</th><th>Клиент и задача</th>${mgr ? '<th>Сотрудник</th>' : ''}<th></th></tr></thead><tbody>
+      ${list.map(s => `<tr><td data-l="Дата">${esc(s.date)}</td><td data-l="Время">${hhmm(s.start)}–${s.open ? '<b>идёт</b>' : hhmm(s.end)}</td>
+        <td class="num" data-l="Длительность">${s.min > 240 ? `<span class="badge b-wait" title="Проверьте, не забыт ли таймер">${fmtMin(s.min)}</span>` : fmtMin(s.min)}</td>
+        <td><b>${esc(s.client)}</b><div class="sub">${esc(s.task)}${s.how && s.how !== 'таймер' ? ' · ' + esc(s.how) : ''}${s.comment ? ' · ' + esc(s.comment) : ''}</div></td>
+        ${mgr ? `<td data-l="Сотрудник">${esc(s.person)}</td>` : ''}
+        <td><div class="acts">${!s.open && canEditSession(s) ? `<button class="btn ghost sm" data-se="${esc(s.id)}">Изменить</button>` : ''}<button class="btn ghost sm" data-task="${esc(s.taskId)}">Задача</button></div></td></tr>`).join('')}
+      </tbody></table></div>`}`;
+  $('tper').onclick = e => { const b = e.target.closest('button'); if (b) { S.tper = b.dataset.p; vTime(); } };
+  if ($('temp')) $('temp').onchange = e => { S.temp = e.target.value; vTime(); };
+  $('content').querySelectorAll('[data-se]').forEach(b => b.onclick = () => editSession(b.dataset.se));
+  $('content').querySelectorAll('[data-cl]').forEach(r => r.onclick = () => openClient(r.dataset.cl));
+  bindTaskRows($('content'));
 }
 
 // ===================== КЛИЕНТ =====================

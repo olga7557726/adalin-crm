@@ -329,7 +329,7 @@ function navFor(d) {
     { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты'], ['time', 'Моё время']] },
     { sec: 'Справочники', items: [['regs', 'Регламенты']] }];
   return [
-    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', null, 'этап 4'], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', null, 'этап 3']] },
+    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', null, 'этап 4'], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', (d.reports || []).filter(r => r.status === 'черновик').length]] },
     { sec: 'Управление', items: [['time', 'Рабочее время'], ['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
 }
 const TITLES = { dash: 'Аналитика', leads: 'Заявки', clients: 'Клиенты', tasks: 'Задачи', requests: 'Запросы клиентам', reports: 'Отчёты',
@@ -479,7 +479,7 @@ function vDash() {
     <div class="panel pad">
       <div class="ph"><h3>Готовность отчётов клиентам</h3>
         <select id="progSel">${[...new Set([d.defaultPeriod, ...periods()])].map(p => `<option ${p === per ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
-      <div class="muted small" style="margin-bottom:8px">Выполненные задачи за отчётный период по каждому клиенту. Когда всё выполнено — можно готовить отчёт (этап 3).</div>
+      <div class="muted small" style="margin-bottom:8px">Выполненные задачи за отчётный период по каждому клиенту. Когда всё выполнено, черновик отчёта собирается сам — см. «Отчёты».</div>
       ${C.map(c => { const m = perTasks.filter(t => t.clientCode === c['Код']); if (!m.length) return ''; const dn = m.filter(isDone).length; const pct = Math.round(dn / m.length * 100);
         return `<div class="prog" data-cl="${esc(c['Код'])}"><div><b>${esc(c['Клиент'])}</b><div class="sub muted small">${esc(c['Ответственный'])}</div></div><div class="bar"><i style="width:${pct}%;${pct === 100 ? 'background:#1e7a4c' : ''}"></i></div><div class="r">${dn} из ${m.length}</div></div>`; }).join('') || '<div class="empty">Задач за этот период нет</div>'}
     </div>`;
@@ -554,7 +554,11 @@ function openTask(id) {
       <label>Статус</label><div class="chips" id="seg">${['к выполнению', 'в работе', 'выполнено'].map(s => `<button type="button" data-s="${s}" class="${s === st ? 'on' : ''}">${s}</button>`).join('')}${st === 'ожидает клиента' ? '<button type="button" class="on" data-s="ожидает клиента">ждём клиента</button>' : ''}</div>
       ${timeBlock(t)}
       ${sums}${pay}
-      <label>Итог для клиента (попадёт в отчёт)</label><input type="text" data-f="Итог для клиента" value="${esc(t['Итог для клиента'])}" placeholder="Например: декларация подана 20.10">
+      <div class="note" style="margin-top:14px"><b style="color:var(--text)">В отчёте клиенту:</b> «${esc(t.result)}»${t.result === t.resultStd ? '' : ' <span class="small">(свой текст)</span>'}
+        <div class="small">Результат определяется видом работы — писать ничего не нужно, достаточно отметить «выполнено».</div></div>
+      ${S.data.role === 'руководитель' && !S.data.viaManager ? `<details style="margin-top:6px"><summary class="small muted" style="cursor:pointer">Изменить текст результата для этой задачи</summary>
+        <input type="text" data-f="Итог для клиента" value="${esc(t.result === t.resultStd ? '' : t.result)}" placeholder="${esc(t.resultStd)}" style="margin-top:6px">
+        <div class="small muted">Пусто — стандартный текст. Стандарт для всех задач этого вида меняется в «Правилах сроков», колонка «Результат для отчёта».</div></details>` : ''}
       <label>Внутренний комментарий (клиент не видит)</label><textarea data-f="Внутренний комментарий">${esc(t['Внутренний комментарий'])}</textarea>
       <div class="actions"><button class="btn" id="save">Сохранить</button><button class="btn ghost" id="dx2">Закрыть</button></div>
       ${req}
@@ -582,6 +586,8 @@ function openNewTask(clientCode) {
   openModal(`<h3>Разовая задача</h3><div class="muted small">Попадёт в отчёт клиенту за выбранный период.</div>
     <label>Клиент</label><select id="ntc">${cl.map(c => `<option value="${esc(c['Код'])}" ${c['Код'] === clientCode ? 'selected' : ''}>${esc(c['Клиент'])}</option>`).join('')}</select>
     <label>Что сделать</label><input type="text" id="ntt" placeholder="Например: сверка расчётов с ИМНС">
+    <label>Результат для отчёта клиенту</label><input type="text" id="ntr" placeholder="Например: акт сверки подписан, расхождений нет">
+    <div class="small muted" style="margin-top:4px">Что получит клиент, когда работа будет выполнена. Пусто — «Выполнено».</div>
     <div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" placeholder="${esc(d.today)}"></div>
     <div><label>Отчётный период</label><input type="text" id="ntp" value="${esc(d.defaultPeriod)}"></div></div>
     ${mgr ? `<label>Сотрудник</label><select id="nte">${d.employees.map(e => `<option>${esc(e)}</option>`).join('')}</select>` : ''}
@@ -591,7 +597,7 @@ function openNewTask(clientCode) {
   syncEmp(); $('ntc').onchange = syncEmp;
   $('ntx').onclick = closeModal;
   $('ntb').onclick = async () => {
-    const r = await act('task.create', { clientCode: $('ntc').value, title: $('ntt').value, deadline: $('ntd').value.trim(), period: $('ntp').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value }, $('ntb'));
+    const r = await act('task.create', { clientCode: $('ntc').value, title: $('ntt').value, deadline: $('ntd').value.trim(), period: $('ntp').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value, result: $('ntr').value }, $('ntb'));
     if (r) { closeModal(); toast('Задача создана'); openTask(r.createdId); }
   };
 }
@@ -717,7 +723,8 @@ function regHtml(g, mgr) {
     <div class="muted small">${esc(g.category || 'Без категории')} · код ${esc(g.code)}${g.updated ? ' · обновлён ' + esc(g.updated) : ''}${g.resp ? ' · ответственный ' + esc(g.resp) : ''}</div>
     ${g.desc ? `<p style="margin:12px 0 0">${esc(g.desc)}</p>` : ''}
     <h4 style="margin:16px 0 4px">Порядок выполнения</h4>${stepsHtml(g.steps)}
-    <h4 style="margin:16px 0 4px">Для каких задач</h4><div class="muted">${ruleNames.length ? ruleNames.map(esc).join('; ') : 'не привязан к задачам'}</div>`;
+    <h4 style="margin:16px 0 4px">Для каких задач</h4><div class="muted">${ruleNames.length ? ruleNames.map(esc).join('; ') : 'не привязан к задачам'}</div>
+    ${g.rules.length ? `<h4 style="margin:16px 0 4px">Результат в отчёте клиенту</h4><div>${[...new Set(g.rules.map(k => (S.data.rules.find(x => x.code === k) || {}).result).filter(Boolean))].map(r => '«' + esc(r) + '»').join('; ')}</div>` : ''}`;
 }
 function bindRegButtons(root) { if (root) root.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editReg(b.dataset.edit)); }
 function showReg(g) {
@@ -1001,7 +1008,102 @@ function vNeed() {
       '<p class="muted small">Документы и ответы присылайте в чат с ботом АдалинКонсалт — мы передадим их вашему бухгалтеру.</p>' : '<div class="panel empty">Сейчас от вас ничего не нужно</div>'}`;
 }
 function vReports() {
-  $('content').innerHTML = `<div class="panel empty">${S.data.role === 'клиент' ? 'Здесь будут отчёты о выполненной работе за каждый месяц.' : 'Отчёты клиентам появятся на этапе 3: черновик собирается из выполненных задач, вы утверждаете, клиент получает PDF.'}</div>`;
+  const d = S.data;
+  if (d.role === 'клиент') return vClientReports();
+  const reps = d.reports || [];
+  const pers = [...new Set([d.reportPeriod, ...reps.map(r => r.period), ...periods()].filter(Boolean))];
+  const per = S.repPer && pers.includes(S.repPer) ? S.repPer : d.reportPeriod;
+  const active = d.clientCards.filter(c => low(c['Статус']) === 'активный');
+  const stBadge = r => !r ? '<span class="badge">нет черновика</span>'
+    : r.status === 'отправлен' ? `<span class="badge b-done">отправлен ${esc(r.sent)}</span>`
+    : r.status === 'утверждён' ? '<span class="badge b-work">утверждён, уйдёт 28-го</span>'
+    : `<span class="badge b-wait">черновик${r.kind === 'с причинами' ? ' с причинами' : ''}</span>`;
+  const rows = active.map(c => {
+    const t = d.tasks.filter(x => x.clientCode === c['Код'] && x.period === per);
+    const pl = t.filter(x => x.type !== 'разовая'), dn = pl.filter(isDone).length;
+    const r = reps.find(x => x.clientCode === c['Код'] && x.period === per);
+    return { c, t, pl, dn, r };
+  }).filter(x => x.t.length || x.r);
+  const cnt = s => rows.filter(x => x.r && x.r.status === s).length;
+  $('content').innerHTML = `
+    <div class="toolbar"><select id="rper">${pers.map(p => `<option ${p === per ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <span class="muted small">Черновик собирается сам: как только выполнены все плановые задачи клиента, а 26-го — по всем остальным, с причинами. Без вашего утверждения ничего не уходит; 28-го уходят утверждённые.</span></div>
+    <div class="minis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="panel mini"><div class="l">Клиентов с работой за ${esc(per)}</div><div class="v">${rows.length}</div></div>
+      <div class="panel mini"><div class="l">Ждут вашего утверждения</div><div class="v" style="color:${cnt('черновик') ? 'var(--warn)' : 'inherit'}">${cnt('черновик')}</div></div>
+      <div class="panel mini"><div class="l">Утверждены, уйдут 28-го</div><div class="v">${cnt('утверждён')}</div></div>
+      <div class="panel mini"><div class="l">Отправлены</div><div class="v">${cnt('отправлен')}</div></div>
+    </div>
+    <div class="panel twrap">${rows.length ? `<table class="tbl"><thead><tr><th>Клиент</th><th>Плановые задачи</th><th>Отчёт</th><th></th></tr></thead><tbody>
+      ${rows.map(x => { const pct = x.pl.length ? Math.round(x.dn / x.pl.length * 100) : 0; return `<tr>
+        <td class="nm"><b>${esc(x.c['Клиент'])}</b><div class="sub">${esc(x.c['Ответственный'])}</div></td>
+        <td data-l="Плановые"><div style="display:flex;gap:10px;align-items:center;min-width:180px"><div class="bar" style="flex:1"><i style="width:${pct}%;${pct === 100 ? 'background:#1e7a4c' : ''}"></i></div><span class="small">${x.dn} из ${x.pl.length}</span></div></td>
+        <td data-l="Отчёт">${stBadge(x.r)}${x.r && x.r.approved ? `<div class="sub">утвердил(а) ${esc(x.r.by)} ${esc(x.r.approved)}</div>` : ''}</td>
+        <td><div class="acts">${x.r ? `<button class="btn ${x.r.status === 'черновик' ? '' : 'ghost'} sm" data-rep="${esc(x.r.id)}">${x.r.status === 'черновик' ? 'Проверить и утвердить' : 'Открыть'}</button>`
+          : `<button class="btn ghost sm" data-build="${esc(x.c['Код'])}">Собрать черновик сейчас</button>`}</div></td></tr>`; }).join('')}</tbody></table>`
+      : '<div class="empty">За этот период задач нет</div>'}</div>`;
+  $('rper').onchange = e => { S.repPer = e.target.value; vReports(); };
+  $('content').querySelectorAll('[data-rep]').forEach(b => b.onclick = () => openReport(b.dataset.rep));
+  $('content').querySelectorAll('[data-build]').forEach(b => b.onclick = async () => {
+    const r = await act('report.build', { clientCode: b.dataset.build, period: per }, b);
+    if (r) { toast('Черновик собран'); openReport(r.reportId); }
+  });
+}
+async function openReport(id) {
+  showDrawer('<div class="dh"><div><h3>Отчёт</h3></div><button class="x" id="dx">×</button></div><div class="db"><div class="loading">Загрузка…</div></div>', null, true);
+  $('dx').onclick = closeDrawer;
+  let j;
+  try { j = await call('report.view', { id }); } catch (e) { toast(e.message, true); closeDrawer(); return; }
+  const rp = j.report, meta = (S.data.reports || []).find(r => r.id === id) || {};
+  const mgr = S.data.role === 'руководитель';
+  const draft = rp.status === 'черновик';
+  const today = parseD(S.data.today), before28 = today && today.getDate() < 28;
+  showDrawer(`<div class="dh"><div><h3>${esc(meta.client || 'Отчёт')} — ${esc(meta.period || '')}</h3>
+      <div class="muted small">${draft ? 'Черновик: собирается из задач заново при каждом открытии. После утверждения содержимое фиксируется.' : rp.status === 'утверждён' ? 'Утверждён, уйдёт клиенту 28-го.' : 'Отправлен клиенту ' + esc(meta.sent || '') + '.'}</div></div><button class="x" id="dx">×</button></div>
+    <div class="db">
+      ${mgr && draft ? `<div class="box" style="margin-top:0"><h4>Комментарий для клиента (необязательно)</h4>
+        <textarea id="rcm" placeholder="Например: как только получим выписку, закроем работу и сообщим вам">${esc(rp.comment)}</textarea>
+        <div class="actions" style="margin-top:8px"><button class="btn ghost sm" id="rcs">Сохранить комментарий и обновить просмотр</button></div></div>` : ''}
+      ${mgr ? `<div class="actions">
+        ${draft ? `<button class="btn" id="rap">${rp.complete || !before28 ? 'Утвердить и отправить клиенту' : 'Утвердить — уйдёт 28-го'}</button>` : ''}
+        ${rp.status === 'утверждён' ? '<button class="btn ghost" id="run">Вернуть в черновик</button>' : ''}
+        <button class="btn ghost" id="rpdf">Скачать PDF</button></div>
+        ${draft && !rp.complete ? '<div class="note" style="margin-top:8px">Не все работы выполнены — в отчёте есть раздел «Что пока не выполнено» с причинами. Если до 28-го задачи закроются, верните отчёт в черновик — он пересоберётся.</div>' : ''}` : ''}
+      <div class="panel pad" style="margin-top:14px;background:#fff">${rp.html}</div>
+    </div>`, () => openReport(id), true);
+  $('dx').onclick = closeDrawer;
+  if ($('rpdf')) $('rpdf').onclick = () => downloadReport(id, $('rpdf'));
+  if ($('rcs')) $('rcs').onclick = async () => { if (await act('report.comment', { id, comment: $('rcm').value }, $('rcs'))) toast('Комментарий сохранён'); };
+  if ($('rap')) $('rap').onclick = async () => {
+    if ($('rap').dataset.sure !== '1') { $('rap').dataset.sure = '1'; $('rap').textContent = 'Подтвердите: ' + $('rap').textContent; return; }
+    const r = await act('report.approve', { id, comment: $('rcm') ? $('rcm').value : undefined }, $('rap'));
+    if (r) toast(r.approved.sent ? (r.approved.ok ? 'Отчёт отправлен клиенту' : 'Утверждён, но не отправлен: ' + r.approved.note) : 'Утверждён — уйдёт клиенту 28-го');
+  };
+  if ($('run')) $('run').onclick = async () => { if (await act('report.unapprove', { id }, $('run'))) toast('Возвращён в черновик'); };
+}
+async function downloadReport(id, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Готовлю PDF…';
+  try {
+    const j = await call('report.pdf', { id });
+    const bin = atob(j.pdf.base64), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    const a = document.createElement('a'); a.href = url; a.download = j.pdf.ascii || j.pdf.name; /* латиница — имя файла сохраняется во всех браузерах */ a.style.display = 'none'; document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 10000);
+  } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+function vClientReports() {
+  const r = S.data.reports || [];
+  $('content').innerHTML = `<h1 class="hero" style="margin-top:0">Отчёты о работе</h1><p class="lead">Отчёт за месяц приходит в следующем месяце — не позже 28-го числа. Копия всегда здесь.</p>
+    ${r.length ? `<div class="panel"><table class="tbl"><thead><tr><th>Период</th><th>Отправлен</th><th></th></tr></thead><tbody>
+      ${r.map(x => `<tr><td><b>${esc(x.period)}</b></td><td data-l="Отправлен">${esc(x.sent)}</td><td><div class="acts"><button class="btn ghost sm" data-open="${esc(x.id)}">Открыть</button><button class="btn sm" data-pdf="${esc(x.id)}">Скачать PDF</button></div></td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="panel empty">Отчётов пока нет. Первый появится здесь после окончания месяца.</div>'}`;
+  $('content').querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => downloadReport(b.dataset.pdf, b));
+  $('content').querySelectorAll('[data-open]').forEach(b => b.onclick = async () => {
+    try { const j = await call('report.view', { id: b.dataset.open }); showDrawer(`<div class="dh"><div><h3>Отчёт</h3></div><button class="x" id="dx">×</button></div><div class="db"><div class="actions" style="margin-top:0"><button class="btn" id="rpdf">Скачать PDF</button></div><div class="panel pad" style="margin-top:14px">${j.report.html}</div></div>`, null, true);
+      $('dx').onclick = closeDrawer; $('rpdf').onclick = () => downloadReport(b.dataset.open, $('rpdf')); } catch (e) { toast(e.message, true); }
+  });
 }
 
 // ===================== боковая панель и окна =====================

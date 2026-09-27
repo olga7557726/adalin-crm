@@ -676,6 +676,7 @@ function openClient(code, tab) {
   if ($('cEdit')) $('cEdit').onclick = () => editClient(code);
   if ($('kEdit')) $('kEdit').onclick = () => editContract(code);
   if ($('kMake')) $('kMake').onclick = () => makeContract(code, $('kMake'));
+  if ($('kDocx')) $('kDocx').onclick = () => downloadContract(code, $('kDocx'));
   bindTaskRows($('ctab'));
   $('ctab').querySelectorAll('[data-reg]').forEach(li => li.onclick = () => showReg(d.regs.find(g => g.code === li.dataset.reg)));
 }
@@ -702,7 +703,21 @@ function editClient(code) {
 
 // ===================== ДОГОВОР (v3.2) =====================
 const K_GROUPS = ['Договор', 'Заказчик', 'Реквизиты', 'Условия', 'Блоки', 'Цена'];
-const docxUrl = u => { const m = String(u || '').match(/\/d\/([^/]+)/); return m ? 'https://docs.google.com/document/d/' + m[1] + '/export?format=docx' : ''; };
+function saveB64(b64, fileName, type) {
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([arr], { type }));
+  const a = document.createElement('a'); a.href = url; a.download = fileName; a.style.display = 'none'; document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 10000);
+}
+async function downloadContract(code, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Готовлю Word…';
+  try {
+    const j = await call('contract.docx', { code });
+    saveB64(j.docx.base64, j.docx.ascii || j.docx.name, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
 function contractHtml(code) {
   const d = S.data, c = d.clientCards.find(x => x['Код'] === code) || {}, k = d.contracts[code] || {}, F = d.contractFields || [];
   if (!d.contractSheet) return '<div class="note">Сначала обновите таблицу: CRM → «Обновить структуру таблицы (v3.2)». Появится лист «Договоры».</div>';
@@ -714,7 +729,7 @@ function contractHtml(code) {
   const val = f => { const v = k[f.name]; return v === '' || v == null ? '<span class="muted">—</span>' : esc(f.number && /BYN/.test(f.name) ? money(v) : v); };
   return `${miss.length ? `<div class="note" style="margin-bottom:12px">Для договора не хватает: ${esc(miss.join(', '))}.</div>` : ''}
     <div class="actions" style="margin:0 0 12px"><button class="btn ghost sm" id="kEdit">Заполнить данные договора</button><button class="btn sm" id="kMake" ${miss.length ? 'disabled' : ''}>Сформировать договор</button></div>
-    ${k._link ? `<div class="note" style="margin-bottom:12px">Последний договор сформирован ${esc(k._made)}: <a href="${esc(k._link)}" target="_blank" rel="noopener">открыть в Google Документах</a> · <a href="${esc(docxUrl(k._link))}" target="_blank" rel="noopener">скачать Word</a></div>` : ''}
+    ${k._link ? `<div class="note" style="margin-bottom:12px">Последний договор сформирован ${esc(k._made)}. <button class="btn sm" id="kDocx">Скачать Word</button> <a href="${esc(k._link)}" target="_blank" rel="noopener">открыть в Google Документах</a> <span class="muted small">(откроется, если браузер вошёл под adalinconsult)</span></div>` : ''}
     <h4 style="margin:14px 0 6px">Из карточки клиента</h4><div class="kv">${fromCard.map(x => `<div>${esc(x[0])}</div><div>${esc(x[1] || '—')}</div>`).join('')}</div>
     ${K_GROUPS.map(g => `<h4 style="margin:14px 0 6px">${esc(g)}</h4><div class="kv">${F.filter(f => f.group === g).map(f => `<div>${esc(f.name)}</div><div>${val(f)}</div>`).join('')}</div>`).join('')}
     <p class="muted small">Пустые реквизиты (банк, e-mail, телефон) не мешают: в договоре на их месте будет линия, чтобы вписать от руки. Блоки НДС, зарплата, ВЭД, недвижимость и транспорт берутся из карточки клиента.</p>`;
@@ -742,7 +757,7 @@ async function makeContract(code, btn) {
   const r = await act('contract.make', { code }, btn);
   if (!r) return;
   openClient(code, 'contract');
-  toast('Договор сформирован — ссылка во вкладке «Договор»');
+  toast('Договор сформирован — кнопка «Скачать Word» во вкладке «Договор»');
   if (r.contract.unknown && r.contract.unknown.length) toast('В шаблоне есть неизвестные метки: {' + r.contract.unknown.join('}, {') + '}. Проверьте шаблон.', true);
 }
 

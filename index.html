@@ -160,6 +160,10 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .tplan span { display: block; font-size: 12px; color: var(--muted); }
 .tplan b { font-size: 15px; }
 .tbl.mini-t td { padding: 6px 6px; font-size: 13px; }
+.redit { display: grid; gap: 4px 6px; align-items: center; }
+.redit .rh { font-size: 12px; color: var(--muted); }
+.redit input { width: 100%; padding: 6px 8px; font-size: 13px; }
+.redit .x { font-size: 18px; }
 .btn .tick { font-variant-numeric: tabular-nums; color: #fff; opacity: .85; }
 
 /* ---------- вход ---------- */
@@ -199,6 +203,7 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
   .tbl .num { text-align: left; } .tbl td.nm { min-width: 0; } .acts { justify-content: flex-start; margin-top: 6px; }
   .prog { grid-template-columns: 1fr 70px; } .prog .bar { grid-column: 1 / -1; order: 3; }
   .g2 { grid-template-columns: 1fr; }
+  .redit { grid-template-columns: 1fr !important; } .redit .rh { display: none; } .redit .x { justify-self: end; margin-bottom: 8px; }
 }
 </style>
 </head>
@@ -1049,37 +1054,78 @@ function vReports() {
     if (r) { toast('Черновик собран'); openReport(r.reportId); }
   });
 }
-async function openReport(id) {
+const REP_SECTIONS = [
+  ['done', 'Выполненные работы', [['work', 'Работа', 3], ['date', 'Выполнено', 1], ['result', 'Результат', 3]], '+ Добавить работу'],
+  ['pay', 'Суммы к уплате за период', [['what', 'Платёж', 3], ['period', 'Период', 2], ['sum', 'Сумма, BYN', 1], ['date', 'Срок', 1]], '+ Добавить платёж'],
+  ['notDone', 'Что пока не выполнено', [['work', 'Работа', 3], ['reason', 'Причина', 3], ['need', 'Что нужно от клиента', 3]], '+ Добавить строку'],
+  ['next', 'Ближайшие сроки', [['date', 'Дата', 1], ['what', 'Что', 4], ['sum', 'Сумма, BYN', 2]], '+ Добавить срок'],
+];
+async function openReport(id, tab) {
   showDrawer('<div class="dh"><div><h3>Отчёт</h3></div><button class="x" id="dx">×</button></div><div class="db"><div class="loading">Загрузка…</div></div>', null, true);
   $('dx').onclick = closeDrawer;
   let j;
   try { j = await call('report.view', { id }); } catch (e) { toast(e.message, true); closeDrawer(); return; }
   const rp = j.report, meta = (S.data.reports || []).find(r => r.id === id) || {};
-  const mgr = S.data.role === 'руководитель';
+  const mgr = S.data.role === 'руководитель' && !S.data.viaManager;
   const draft = rp.status === 'черновик';
+  tab = draft && mgr ? (tab || 'view') : 'view';
   const today = parseD(S.data.today), before28 = today && today.getDate() < 28;
+  const ed = rp.data ? JSON.parse(JSON.stringify(rp.data)) : null;
+  const editorHtml = () => `<label>Итог (первая строка отчёта)</label><textarea data-sum style="min-height:50px">${esc(ed.summary)}</textarea>` +
+    REP_SECTIONS.map(([key, title, cols, addLbl]) => `<h4 style="margin:18px 0 6px">${esc(title)}</h4>
+      <div class="redit" style="grid-template-columns:${cols.map(c => c[2] + 'fr').join(' ')} 28px">
+        ${cols.map(c => `<div class="rh">${esc(c[1])}</div>`).join('')}<div></div>
+        ${(ed[key] || []).map((row, i) => cols.map(c => `<input type="text" data-k="${key}" data-i="${i}" data-f="${c[0]}" value="${esc(row[c[0]])}">`).join('') + `<button class="x" title="Убрать строку" data-del="${key}" data-i="${i}">×</button>`).join('')}
+      </div>${!(ed[key] || []).length ? '<div class="muted small">Раздел пустой — в отчёт не попадёт.</div>' : ''}
+      <button class="linkbtn" data-add="${key}">${esc(addLbl)}</button>`).join('') +
+    `<label style="margin-top:18px">Комментарий для клиента (необязательно)</label><textarea id="rcm">${esc(rp.comment)}</textarea>`;
   showDrawer(`<div class="dh"><div><h3>${esc(meta.client || 'Отчёт')} — ${esc(meta.period || '')}</h3>
-      <div class="muted small">${draft ? 'Черновик: собирается из задач заново при каждом открытии. После утверждения содержимое фиксируется.' : rp.status === 'утверждён' ? 'Утверждён, уйдёт клиенту 28-го.' : 'Отправлен клиенту ' + esc(meta.sent || '') + '.'}</div></div><button class="x" id="dx">×</button></div>
+      <div class="muted small">${draft ? (rp.edited ? 'Черновик с вашими правками. Изменения в задачах в него уже не попадают — чтобы учесть их, нажмите «Собрать заново из задач».' : 'Черновик собирается из задач при каждом открытии. Поправьте, если нужно, и утвердите.') : rp.status === 'утверждён' ? 'Утверждён, уйдёт клиенту 28-го.' : 'Отправлен клиенту ' + esc(meta.sent || '') + '.'}</div></div><button class="x" id="dx">×</button></div>
     <div class="db">
-      ${mgr && draft ? `<div class="box" style="margin-top:0"><h4>Комментарий для клиента (необязательно)</h4>
-        <textarea id="rcm" placeholder="Например: как только получим выписку, закроем работу и сообщим вам">${esc(rp.comment)}</textarea>
-        <div class="actions" style="margin-top:8px"><button class="btn ghost sm" id="rcs">Сохранить комментарий и обновить просмотр</button></div></div>` : ''}
-      ${mgr ? `<div class="actions">
-        ${draft ? `<button class="btn" id="rap">${rp.complete || !before28 ? 'Утвердить и отправить клиенту' : 'Утвердить — уйдёт 28-го'}</button>` : ''}
-        ${rp.status === 'утверждён' ? '<button class="btn ghost" id="run">Вернуть в черновик</button>' : ''}
-        <button class="btn ghost" id="rpdf">Скачать PDF</button></div>
-        ${draft && !rp.complete ? '<div class="note" style="margin-top:8px">Не все работы выполнены — в отчёте есть раздел «Что пока не выполнено» с причинами. Если до 28-го задачи закроются, верните отчёт в черновик — он пересоберётся.</div>' : ''}` : ''}
-      <div class="panel pad" style="margin-top:14px;background:#fff">${rp.html}</div>
-    </div>`, () => openReport(id), true);
+      ${mgr && draft ? `<div class="tabs2" id="rtabs"><button data-t="view" class="${tab === 'view' ? 'on' : ''}">Просмотр</button><button data-t="edit" class="${tab === 'edit' ? 'on' : ''}">Редактировать</button></div>` : ''}
+      ${tab === 'edit' ? `<div id="redit">${editorHtml()}</div>
+        <div class="actions"><button class="btn" id="rsave">Сохранить правки</button><button class="btn ghost" id="rcancel">Отмена</button><span style="flex:1"></span>${rp.edited ? '<button class="btn danger" id="rreb">Собрать заново из задач</button>' : ''}</div>`
+      : `${mgr ? `<div class="actions" style="margin-top:0">
+          ${draft ? `<button class="btn" id="rap">${rp.complete || !before28 ? 'Утвердить и отправить клиенту' : 'Утвердить — уйдёт 28-го'}</button><button class="btn ghost" id="redt">Редактировать</button>` : ''}
+          ${rp.status === 'утверждён' ? '<button class="btn ghost" id="run">Вернуть в черновик</button>' : ''}
+          <button class="btn ghost" id="rpdf">Скачать PDF</button>${draft && rp.edited ? '<span style="flex:1"></span><button class="btn danger" id="rreb">Собрать заново из задач</button>' : ''}</div>
+          ${draft && !rp.complete ? '<div class="note" style="margin-top:8px">Не все работы выполнены — в отчёте есть раздел «Что пока не выполнено».</div>' : ''}` : ''}
+        <div class="panel pad" style="margin-top:14px;background:#fff">${rp.html}</div>`}
+    </div>`, () => openReport(id, tab), true);
   $('dx').onclick = closeDrawer;
+  if ($('rtabs')) $('rtabs').onclick = e => { const b = e.target.closest('button'); if (b) openReport(id, b.dataset.t); };
+  if ($('redt')) $('redt').onclick = () => openReport(id, 'edit');
   if ($('rpdf')) $('rpdf').onclick = () => downloadReport(id, $('rpdf'));
-  if ($('rcs')) $('rcs').onclick = async () => { if (await act('report.comment', { id, comment: $('rcm').value }, $('rcs'))) toast('Комментарий сохранён'); };
+  if ($('rreb')) $('rreb').onclick = async () => {
+    if ($('rreb').dataset.sure !== '1') { $('rreb').dataset.sure = '1'; $('rreb').textContent = 'Правки пропадут — точно?'; return; }
+    S.drawer = () => openReport(id, 'view');
+    if (await act('report.rebuild', { id }, $('rreb'))) toast('Черновик собран заново из задач');
+  };
   if ($('rap')) $('rap').onclick = async () => {
     if ($('rap').dataset.sure !== '1') { $('rap').dataset.sure = '1'; $('rap').textContent = 'Подтвердите: ' + $('rap').textContent; return; }
-    const r = await act('report.approve', { id, comment: $('rcm') ? $('rcm').value : undefined }, $('rap'));
+    const r = await act('report.approve', { id }, $('rap'));
     if (r) toast(r.approved.sent ? (r.approved.ok ? 'Отчёт отправлен клиенту' : 'Утверждён, но не отправлен: ' + r.approved.note) : 'Утверждён — уйдёт клиенту 28-го');
   };
-  if ($('run')) $('run').onclick = async () => { if (await act('report.unapprove', { id }, $('run'))) toast('Возвращён в черновик'); };
+  if ($('run')) $('run').onclick = async () => { if (await act('report.unapprove', { id }, $('run'))) toast('Возвращён в черновик — можно править'); };
+  if (tab === 'edit') {
+    const box = $('redit');
+    const collect = () => {
+      box.querySelectorAll('[data-k]').forEach(el => { ed[el.dataset.k][+el.dataset.i][el.dataset.f] = el.value; });
+      ed.summary = box.querySelector('[data-sum]').value;
+    };
+    const redraw = () => { const cm = $('rcm').value; box.innerHTML = editorHtml(); $('rcm').value = cm; bindEd(); };
+    const bindEd = () => {
+      box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { collect(); ed[b.dataset.del].splice(+b.dataset.i, 1); redraw(); });
+      box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { collect(); (ed[b.dataset.add] = ed[b.dataset.add] || []).push({}); redraw(); const ins = box.querySelectorAll(`[data-k="${b.dataset.add}"]`); if (ins.length) ins[ins.length - REP_SECTIONS.find(s => s[0] === b.dataset.add)[2].length].focus(); });
+    };
+    bindEd();
+    $('rcancel').onclick = () => openReport(id, 'view');
+    $('rsave').onclick = async () => {
+      collect();
+      S.drawer = () => openReport(id, 'view');
+      if (await act('report.save', { id, data: ed, comment: $('rcm').value }, $('rsave'))) toast('Правки сохранены');
+    };
+  }
 }
 async function downloadReport(id, btn) {
   const old = btn.textContent; btn.disabled = true; btn.textContent = 'Готовлю PDF…';

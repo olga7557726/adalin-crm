@@ -667,13 +667,15 @@ function openClient(code, tab) {
     <div class="db">
       <div class="stats"><div><b>${s.all}</b><span>всего задач</span></div><div><b>${s.done}</b><span>выполнено</span></div><div><b>${s.work}</b><span>в работе</span></div><div><b>${s.todo}</b><span>к выполнению</span></div><div><b style="color:${s.over ? '#b42318' : 'inherit'}">${s.over}</b><span>просрочено</span></div><div><b style="color:${s.wait ? '#9a5b00' : 'inherit'}">${s.wait}</b><span>ждём клиента</span></div></div>
       <div class="actions" style="margin:0 0 12px"><button class="btn ghost sm" id="cNewTask">Создать задачу</button>${mgr ? '<button class="btn ghost sm" id="cEdit">Редактировать карточку</button>' : ''}</div>
-      <div class="tabs2" id="ctabs">${[['card', 'Карточка'], ['tasks', 'Задачи (' + tasks.length + ')'], ['regs', 'Регламенты услуг']].map(x => `<button data-t="${x[0]}" class="${x[0] === tab ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
-      <div id="ctab">${tab === 'card' ? cardHtml : tab === 'tasks' ? `<div class="panel">${taskRows(tasks, { noClient: true })}</div>` : regHtml}</div>
+      <div class="tabs2" id="ctabs">${[['card', 'Карточка'], ['tasks', 'Задачи (' + tasks.length + ')'], ['regs', 'Регламенты услуг']].concat(mgr && d.contracts ? [['contract', 'Договор']] : []).map(x => `<button data-t="${x[0]}" class="${x[0] === tab ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
+      <div id="ctab">${tab === 'card' ? cardHtml : tab === 'tasks' ? `<div class="panel">${taskRows(tasks, { noClient: true })}</div>` : tab === 'contract' ? contractHtml(code) : regHtml}</div>
     </div>`, () => openClient(code, tab), true);
   $('dx').onclick = closeDrawer;
   $('ctabs').onclick = e => { const b = e.target.closest('button'); if (b) openClient(code, b.dataset.t); };
   $('cNewTask').onclick = () => openNewTask(code);
   if ($('cEdit')) $('cEdit').onclick = () => editClient(code);
+  if ($('kEdit')) $('kEdit').onclick = () => editContract(code);
+  if ($('kMake')) $('kMake').onclick = () => makeContract(code, $('kMake'));
   bindTaskRows($('ctab'));
   $('ctab').querySelectorAll('[data-reg]').forEach(li => li.onclick = () => showReg(d.regs.find(g => g.code === li.dataset.reg)));
 }
@@ -696,6 +698,52 @@ function editClient(code) {
     const r = await act('client.save', { code: code || '', fields: out }, $('csave'));
     if (r) { toast('Карточка сохранена'); openClient(r.savedCode); }
   };
+}
+
+// ===================== ДОГОВОР (v3.2) =====================
+const K_GROUPS = ['Договор', 'Заказчик', 'Реквизиты', 'Условия', 'Блоки', 'Цена'];
+const docxUrl = u => { const m = String(u || '').match(/\/d\/([^/]+)/); return m ? 'https://docs.google.com/document/d/' + m[1] + '/export?format=docx' : ''; };
+function contractHtml(code) {
+  const d = S.data, c = d.clientCards.find(x => x['Код'] === code) || {}, k = d.contracts[code] || {}, F = d.contractFields || [];
+  if (!d.contractSheet) return '<div class="note">Сначала обновите таблицу: CRM → «Обновить структуру таблицы (v3.2)». Появится лист «Договоры».</div>';
+  if (low(c['Тип']) === 'ип' || low(c['Режим']) === 'единый налог') return '<div class="note">Договор для ИП пока не настроен: шаблон для ИП будет отдельным.</div>';
+  const miss = F.filter(f => f.required && String(k[f.name] == null ? '' : k[f.name]).trim() === '').map(f => f.name);
+  const fee = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  const fromCard = [['Режим', c['Режим']], ['НДС', c['Плательщик НДС'] === 'да' ? 'да, ' + (c['Период НДС'] || '') : c['Плательщик НДС']], ['Работники', c['Есть работники']],
+    ['Импорт ЕАЭС', c['Импорт ЕАЭС']], ['Недвижимость', c['Недвижимость']], ['Транспорт', c['Транспорт']], ['Абонентская плата', fee ? (money(c[fee]) || '—') + ' BYN' : '—']];
+  const val = f => { const v = k[f.name]; return v === '' || v == null ? '<span class="muted">—</span>' : esc(f.number && /BYN/.test(f.name) ? money(v) : v); };
+  return `${miss.length ? `<div class="note" style="margin-bottom:12px">Для договора не хватает: ${esc(miss.join(', '))}.</div>` : ''}
+    <div class="actions" style="margin:0 0 12px"><button class="btn ghost sm" id="kEdit">Заполнить данные договора</button><button class="btn sm" id="kMake" ${miss.length ? 'disabled' : ''}>Сформировать договор</button></div>
+    ${k._link ? `<div class="note" style="margin-bottom:12px">Последний договор сформирован ${esc(k._made)}: <a href="${esc(k._link)}" target="_blank" rel="noopener">открыть в Google Документах</a> · <a href="${esc(docxUrl(k._link))}" target="_blank" rel="noopener">скачать Word</a></div>` : ''}
+    <h4 style="margin:14px 0 6px">Из карточки клиента</h4><div class="kv">${fromCard.map(x => `<div>${esc(x[0])}</div><div>${esc(x[1] || '—')}</div>`).join('')}</div>
+    ${K_GROUPS.map(g => `<h4 style="margin:14px 0 6px">${esc(g)}</h4><div class="kv">${F.filter(f => f.group === g).map(f => `<div>${esc(f.name)}</div><div>${val(f)}</div>`).join('')}</div>`).join('')}
+    <p class="muted small">Пустые реквизиты (банк, e-mail, телефон) не мешают: в договоре на их месте будет линия, чтобы вписать от руки. Блоки НДС, зарплата, ВЭД, недвижимость и транспорт берутся из карточки клиента.</p>`;
+}
+function editContract(code) {
+  const d = S.data, c = d.clientCards.find(x => x['Код'] === code) || {}, k = d.contracts[code] || {}, F = d.contractFields || [];
+  const input = f => {
+    const v = k[f.name] == null ? '' : k[f.name];
+    if (f.options) return `<select data-kf="${esc(f.name)}"><option value=""></option>${f.options.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    return `<input type="text" data-kf="${esc(f.name)}" value="${esc(f.number && v !== '' && /BYN/.test(f.name) ? money(v) : v)}" placeholder="${esc(f.date ? 'ДД.ММ.ГГГГ' : (f.hint || ''))}">`;
+  };
+  showDrawer(`<div class="dh"><div><h3>Договор: ${esc(c['Клиент'])}</h3><div class="muted small">Поля со звёздочкой нужны, чтобы сформировать договор. Остальные можно оставить пустыми.</div></div><button class="x" id="dx">×</button></div>
+    <div class="db">${K_GROUPS.map(g => `<h4 style="margin:14px 0 6px">${esc(g)}</h4><div class="g2">${F.filter(f => f.group === g).map(f => `<div><label>${esc(f.name)}${f.required ? ' *' : ''}${f.hint && (f.options || f.date) ? ` <span class="muted small">· ${esc(f.hint)}</span>` : ''}</label>${input(f)}</div>`).join('')}</div>`).join('')}
+      <div class="actions"><button class="btn" id="ksave">Сохранить</button><button class="btn ghost" id="kcancel">Отмена</button></div></div>`, null, true);
+  $('dx').onclick = closeDrawer;
+  $('kcancel').onclick = () => openClient(code, 'contract');
+  $('ksave').onclick = async () => {
+    const out = {};
+    $('drawer').querySelectorAll('[data-kf]').forEach(el => out[el.dataset.kf] = el.value);
+    const r = await act('contract.save', { code, fields: out }, $('ksave'));
+    if (r) { toast('Данные договора сохранены'); openClient(code, 'contract'); }
+  };
+}
+async function makeContract(code, btn) {
+  const r = await act('contract.make', { code }, btn);
+  if (!r) return;
+  openClient(code, 'contract');
+  toast('Договор сформирован — ссылка во вкладке «Договор»');
+  if (r.contract.unknown && r.contract.unknown.length) toast('В шаблоне есть неизвестные метки: {' + r.contract.unknown.join('}, {') + '}. Проверьте шаблон.', true);
 }
 
 // ===================== РЕГЛАМЕНТЫ =====================

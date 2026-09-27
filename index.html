@@ -726,8 +726,13 @@ function contractHtml(code) {
   const fee = (d.moneyFields || []).find(f => /абонент/i.test(f));
   const fromCard = [['Режим', c['Режим']], ['НДС', c['Плательщик НДС'] === 'да' ? 'да, ' + (c['Период НДС'] || '') : c['Плательщик НДС']], ['Работники', c['Есть работники']],
     ['Импорт ЕАЭС', c['Импорт ЕАЭС']], ['Недвижимость', c['Недвижимость']], ['Транспорт', c['Транспорт']], ['Абонентская плата', fee ? (money(c[fee]) || '—') + ' BYN' : '—']];
+  const isZero = v => v !== '' && v != null && Number(String(v).replace(',', '.')) === 0;
+  const clash = [];
+  if (c['Транспорт'] === 'да' && isZero(k['Число ТС'])) clash.push('в карточке «Транспорт» = да, а транспортных средств 0 — блока «Транспорт» в договоре не будет. Если транспорта нет, поставьте в карточке «Транспорт» = нет, иначе CRM продолжит ставить задачи по транспортному налогу');
+  if (c['Есть работники'] === 'да' && isZero(k['Число работников'])) clash.push('в карточке «Есть работники» = да, а работников 0 — блока «Заработная плата и кадры» в договоре не будет. Если работников нет, поставьте в карточке «Есть работники» = нет, иначе CRM продолжит ставить задачи по зарплате');
   const val = f => { const v = k[f.name]; return v === '' || v == null ? '<span class="muted">—</span>' : esc(f.number && /BYN/.test(f.name) ? money(v) : v); };
   return `${miss.length ? `<div class="note" style="margin-bottom:12px">Для договора не хватает: ${esc(miss.join(', '))}.</div>` : ''}
+    ${clash.map(x => `<div class="note" style="margin-bottom:12px">Расхождение: ${esc(x)}.</div>`).join('')}
     <div class="actions" style="margin:0 0 12px"><button class="btn ghost sm" id="kEdit">Заполнить данные договора</button><button class="btn sm" id="kMake" ${miss.length ? 'disabled' : ''}>Сформировать договор</button></div>
     ${k._link ? `<div class="note" style="margin-bottom:12px">Последний договор сформирован ${esc(k._made)}. <button class="btn sm" id="kDocx">Скачать Word</button> <a href="${esc(k._link)}" target="_blank" rel="noopener">открыть в Google Документах</a> <span class="muted small">(откроется, если браузер вошёл под adalinconsult)</span></div>` : ''}
     <h4 style="margin:14px 0 6px">Из карточки клиента</h4><div class="kv">${fromCard.map(x => `<div>${esc(x[0])}</div><div>${esc(x[1] || '—')}</div>`).join('')}</div>

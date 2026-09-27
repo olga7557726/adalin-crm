@@ -745,7 +745,7 @@ function contractFormHtml(code) {
   // у ИП свой набор полей: поля ООО прячутся, когда в «Тип» выбран ИП (applyIpForm)
   const lbl = f => `<span data-lbl-ooo>${esc(f.name)}${f.required ? ' *' : ''}${f.hint && (f.options || f.date) ? ` <span class="muted small">· ${esc(f.hint)}</span>` : ''}</span>` +
     `<span data-lbl-ip style="display:none">${esc(f.name)}${f.reqIp ? ' *' : ''}${f.hintIp ? ` <span class="muted small">· ${esc(f.hintIp)}</span>` : ''}</span>`;
-  return K_GROUPS.map(g => `<div data-kg><h4 style="margin:18px 0 6px">${esc(K_TITLES[g])} <span class="muted small">· для договора, видит только руководитель</span></h4><div class="g2">${F.filter(f => f.group === g).map(f => `<div data-kw data-ip="${f.ip ? 1 : 0}"><label>${lbl(f)}</label>${input(f)}</div>`).join('')}</div></div>`).join('');
+  return K_GROUPS.map(g => `<div data-kg><h4 style="margin:18px 0 6px">${esc(K_TITLES[g])} <span class="muted small">· для договора, видит только руководитель</span></h4><div class="g2">${F.filter(f => f.group === g).map(f => `<div data-kw data-ip="${f.ip === false ? 0 : 1}"><label>${lbl(f)}</label>${input(f)}</div>`).join('')}</div></div>`).join('');
 }
 function applyIpForm() {
   const dr = $('drawer'), sel = dr && dr.querySelector('[data-cf="Тип"]');

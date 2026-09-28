@@ -783,6 +783,23 @@ async function makeContract(code, btn) {
   if (r.contract.unknown && r.contract.unknown.length) toast('В шаблоне есть неизвестные метки: {' + r.contract.unknown.join('}, {') + '}. Проверьте шаблон.', true);
 }
 
+// ===================== НОРМЫ ВРЕМЕНИ (v3.5) =====================
+function openNorms() {
+  const d = S.data, N = (d.norms || []).filter(n => n.active);
+  const grp = [['Налоги, взносы, зарплата', N.filter(n => !n.block)], ['Блоки услуг (ежемесячно)', N.filter(n => n.block)]];
+  showDrawer(`<div class="dh"><div><h3>Нормы времени</h3><div class="muted small">Минут на одну задачу. Новая норма действует для задач, которые создаются дальше; у уже созданной задачи план меняется в самой задаче.</div></div><button class="x" id="dx">×</button></div>
+    <div class="db">${grp.map(g => g[1].length ? `<h4 style="margin:14px 0 6px">${esc(g[0])}</h4><table class="tbl"><tbody>${g[1].map(n => `<tr><td>${esc(n.name)}<div class="sub">${esc(n.code)}</div></td><td class="num" style="width:120px"><input type="text" inputmode="numeric" data-norm="${esc(n.code)}" value="${esc(n.plan)}" style="width:80px;text-align:right"> мин</td></tr>`).join('')}</tbody></table>` : '').join('')}
+      <div class="actions"><button class="btn" id="nsave">Сохранить</button><button class="btn ghost" id="ncancel">Закрыть</button></div></div>`, null, true);
+  $('dx').onclick = closeDrawer; $('ncancel').onclick = closeDrawer;
+  $('nsave').onclick = async () => {
+    const out = {};
+    $('drawer').querySelectorAll('[data-norm]').forEach(el => { const n = N.find(x => x.code === el.dataset.norm); if (n && String(n.plan) !== el.value.trim()) out[el.dataset.norm] = el.value.trim(); });
+    if (!Object.keys(out).length) { toast('Изменений нет'); return; }
+    const r = await act('norm.save', { norms: out }, $('nsave'));
+    if (r) { toast('Нормы сохранены: ' + r.normsSaved); openNorms(); }
+  };
+}
+
 // ===================== РЕГЛАМЕНТЫ =====================
 function vRegs() {
   const d = S.data, mgr = d.role === 'руководитель';
@@ -792,12 +809,13 @@ function vRegs() {
   if (!S.regSel || !d.regs.some(g => g.code === S.regSel)) S.regSel = list[0] ? list[0].code : null;
   const filled = d.regs.filter(g => String(g.steps || '').trim()).length;
   $('content').innerHTML = `<div class="toolbar"><input type="text" id="rq" placeholder="Поиск по регламентам" value="${esc(S.regQ)}" style="width:280px">
-      <span class="muted small">Заполнено ${filled} из ${d.regs.length}</span><span class="grow"></span>${mgr ? '<button class="btn" id="newReg">+ Новый регламент</button>' : ''}</div>
+      <span class="muted small">Заполнено ${filled} из ${d.regs.length}</span><span class="grow"></span>${mgr && d.norms ? '<button class="btn ghost" id="normsBtn">Нормы времени</button>' : ''}${mgr ? '<button class="btn" id="newReg">+ Новый регламент</button>' : ''}</div>
     ${d.regs.length ? `<div class="regs"><div class="panel reglist">${cats.map(cat => `<div class="grp">${esc(cat)}</div>` + list.filter(g => (g.category || 'Без категории') === cat).map(g =>
       `<button data-r="${esc(g.code)}" class="${g.code === S.regSel ? 'on' : ''}">${esc(g.name)}<small>${String(g.steps || '').trim() ? 'обновлён ' + esc(g.updated || '—') : 'шаги не заполнены'}</small></button>`).join('')).join('')}</div>
       <div class="panel pad" id="regView"></div></div>` : `<div class="panel empty">Регламентов пока нет.${mgr ? ' Выполните в таблице CRM → «Обновить структуру таблицы (v2.1)» или создайте первый регламент.' : ''}</div>`}`;
   $('rq').oninput = e => { S.regQ = e.target.value; const p = e.target.selectionStart; vRegs(); $('rq').focus(); $('rq').setSelectionRange(p, p); };
   if ($('newReg')) $('newReg').onclick = () => editReg(null);
+  if ($('normsBtn')) $('normsBtn').onclick = () => openNorms();
   $('content').querySelectorAll('[data-r]').forEach(b => b.onclick = () => { S.regSel = b.dataset.r; vRegs(); });
   if ($('regView') && S.regSel) $('regView').innerHTML = regHtml(d.regs.find(g => g.code === S.regSel), mgr);
   bindRegButtons($('regView'));

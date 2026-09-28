@@ -334,7 +334,7 @@ function navFor(d) {
     { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты'], ['time', 'Моё время']] },
     { sec: 'Справочники', items: [['regs', 'Регламенты']] }];
   return [
-    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', null, 'этап 4'], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', (d.reports || []).filter(r => r.status === 'черновик').length]] },
+    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', (d.leads || []).filter(l => l['Статус'] === 'новая').length, d.leads === undefined ? 'этап 4' : null], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', (d.reports || []).filter(r => r.status === 'черновик').length]] },
     { sec: 'Управление', items: [['time', 'Рабочее время'], ['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
 }
 const TITLES = { dash: 'Аналитика', leads: 'Заявки', clients: 'Клиенты', tasks: 'Задачи', requests: 'Запросы клиентам', reports: 'Отчёты',
@@ -386,7 +386,7 @@ function render() {
   if ($('chpw')) $('chpw').onclick = () => renderPassword(false);
   if ($('tbStop')) $('tbStop').onclick = async () => { const r = await act('time.stop', {}, $('tbStop')); if (r) toast(r.timer.stoppedMin ? 'Записано: ' + fmtMin(r.timer.stoppedMin) : 'Меньше минуты — не записано'); };
   if ($('tbOpen')) $('tbOpen').onclick = () => openTask(d.running.taskId);
-  ({ dash: vDash, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs, time: vTime,
+  ({ dash: vDash, leads: vLeads, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs, time: vTime,
      deadlines: vDeadlines, need: vNeed, reports: vReports })[S.view]();
   if (S.drawer) S.drawer();
 }
@@ -481,6 +481,7 @@ function vDash() {
         ${emps.map(e => { const m = T.filter(t => t.employee === e); return `<tr class="click" data-emp="${esc(e)}"><td><b>${esc(e)}</b></td><td class="num" data-l="Открыто">${m.filter(t => !isDone(t)).length}</td><td class="num" data-l="Просрочено">${m.filter(t => t.overdue).length || '—'}</td><td class="num" data-l="Ждём клиента">${m.filter(isWait).length || '—'}</td><td class="num" data-l="Выполнено">${m.filter(isDone).length}</td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">Задач пока нет</div>'}
       </div>
     </div>
+    ${leadsDashHtml(d)}
     <div class="panel pad">
       <div class="ph"><h3>Готовность отчётов клиентам</h3>
         <select id="progSel">${[...new Set([d.defaultPeriod, ...periods()])].map(p => `<option ${p === per ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
@@ -492,8 +493,88 @@ function vDash() {
   $('content').querySelectorAll('[data-emp]').forEach(r => r.onclick = () => { S.f = { ...S.f, emp: r.dataset.emp, st: 'open', client: '' }; go('tasks'); });
   $('content').querySelectorAll('[data-cl]').forEach(r => r.onclick = () => openClient(r.dataset.cl));
   $('progSel').onchange = e => { S.progPeriod = e.target.value; vDash(); };
+  if ($('leadDash')) $('leadDash').onclick = () => go('leads');
 }
 function go(view) { S.view = view; S.drawer = null; closeDrawer(); location.hash = view; render(); window.scrollTo(0, 0); }
+
+// ===================== ЗАЯВКИ (v4.0) =====================
+const LEAD_DONE = ['клиент', 'отказ'];
+const leadBadge = s => `<span class="badge ${s === 'новая' ? 'b-over' : s === 'клиент' ? 'b-done' : s === 'отказ' ? '' : 'b-wait'}">${esc(s || '—')}</span>`;
+function vLeads() {
+  const d = S.data, L = d.leads;
+  if (L === null) { $('content').innerHTML = '<div class="panel empty">Сначала обновите таблицу: CRM → «Обновить структуру таблицы (v4.0)». Появится лист «Заявки».</div>'; return; }
+  S.lf = S.lf || { st: 'active', q: '' };
+  const q = low(S.lf.q), st = S.lf.st;
+  const base = L.filter(l => !q || low(l['Имя'] + ' ' + l['Телефон'] + ' ' + l['Комментарий'] + ' ' + l['Заметки']).includes(q));
+  const tabs = [['active', 'В работе', base.filter(l => !LEAD_DONE.includes(l['Статус']))]].concat(d.leadOptions.statuses.map(s => [s, s, base.filter(l => l['Статус'] === s)])).concat([['all', 'Все', base]]);
+  const list = (tabs.find(t => t[0] === st) || tabs[0])[2];
+  $('content').innerHTML = `<div class="toolbar"><input type="text" id="lq" placeholder="Поиск: имя, телефон, комментарий" value="${esc(S.lf.q)}" style="width:280px"><span class="grow"></span><button class="btn" id="newLead">+ Новая заявка</button></div>
+    <div class="tabs2" id="ltabs">${tabs.map(t => `<button data-t="${esc(t[0])}" class="${t[0] === st ? 'on' : ''}">${esc(t[1])} ${t[2].length}</button>`).join('')}</div>
+    <div class="panel">${list.length ? `<table class="tbl"><thead><tr><th>Дата</th><th>Имя, телефон</th><th>Форма бизнеса</th><th>Что интересует</th><th>Источник</th><th>Статус</th></tr></thead><tbody>
+      ${list.map(l => `<tr class="click" data-lead="${esc(l.id)}"><td data-l="Дата">${esc(l.date)}<div class="sub">${esc(l.id)}</div></td><td class="nm"><b>${esc(l['Имя'])}</b><div class="sub">${esc(l['Телефон'])}</div></td>
+        <td data-l="Форма бизнеса">${esc(l['Форма бизнеса'])}</td><td data-l="Что интересует">${esc(l['Услуга'])}</td><td data-l="Источник">${esc(l['Источник'])}</td><td data-l="Статус">${leadBadge(l['Статус'])}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Заявок нет</div>'}</div>
+    <p class="muted small">Заявки с формы на сайте приходят сами, о каждой — уведомление в Telegram. Обращения с других кнопок сайта, по телефону и по рекомендации добавляйте кнопкой «+ Новая заявка».</p>`;
+  $('lq').oninput = e => { S.lf.q = e.target.value; const p = e.target.selectionStart; vLeads(); $('lq').focus(); $('lq').setSelectionRange(p, p); };
+  $('ltabs').onclick = e => { const b = e.target.closest('button'); if (b) { S.lf.st = b.dataset.t; vLeads(); } };
+  $('newLead').onclick = () => openLead(null);
+  $('content').querySelectorAll('[data-lead]').forEach(r => r.onclick = () => openLead(r.dataset.lead));
+}
+function openLead(id) {
+  const d = S.data, O = d.leadOptions, l = id ? d.leads.find(x => x.id === id) : { 'Статус': 'новая', 'Источник': 'телефон' };
+  if (!l) return;
+  const sel = (name, opts, v) => `<select data-lf="${esc(name)}">${(opts.includes(v) || !v ? opts : [v].concat(opts)).map(o => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+  const inp = (name, v, ph) => `<input type="text" data-lf="${esc(name)}" value="${esc(v || '')}" placeholder="${esc(ph || '')}">`;
+  const client = l['Код клиента'] ? d.clientCards.find(c => c['Код'] === l['Код клиента']) : null;
+  showDrawer(`<div class="dh"><div><h3>${id ? esc(l['Имя']) : 'Новая заявка'}</h3><div class="muted small">${id ? esc(l.id + ' · ' + l.date + ' · ' + l['Источник']) : 'Обращение по телефону, в Telegram, по рекомендации'}</div></div><button class="x" id="dx">×</button></div>
+    <div class="db">
+      ${client ? `<div class="note" style="margin-bottom:12px">Клиент: <a href="#" id="lcl">${esc(client['Клиент'])} (${esc(client['Код'])})</a></div>` : ''}
+      <div class="g2">
+        <div><label>Статус</label>${sel('Статус', O.statuses, l['Статус'])}</div>
+        <div><label>Источник</label>${sel('Источник', O.sources, l['Источник'])}</div>
+        <div><label>Имя *</label>${inp('Имя', l['Имя'], 'Как обращаться')}</div>
+        <div><label>Телефон</label>${inp('Телефон', l['Телефон'], '+375 29 000-00-00')}${l['Телефон'] ? ` <a class="small" href="tel:${esc(String(l['Телефон']).replace(/[^+0-9]/g, ''))}">позвонить</a>` : ''}</div>
+        <div><label>Форма бизнеса</label>${sel('Форма бизнеса', O.business, l['Форма бизнеса'] || 'Не указана')}</div>
+        <div><label>Что интересует</label>${sel('Услуга', O.services, l['Услуга'] || O.services[0])}</div>
+      </div>
+      <label>Комментарий клиента</label><textarea data-lf="Комментарий" rows="3">${esc(l['Комментарий'] || '')}</textarea>
+      <label>Заметки</label><textarea data-lf="Заметки" rows="4" placeholder="Например: позвонила 29.09, ждёт расчёт до пятницы">${esc(l['Заметки'] || '')}</textarea>
+      <label>Причина отказа <span class="muted small">— обязательно при статусе «отказ»</span></label>${inp('Причина отказа', l['Причина отказа'], 'Например: дорого, ушли к другому бухгалтеру')}
+      <div class="actions"><button class="btn" id="lsave">Сохранить</button>${id && !client ? '<button class="btn ghost" id="lclient">Сделать клиентом</button>' : ''}<button class="btn ghost" id="lcancel">Закрыть</button></div>
+    </div>`, id ? () => openLead(id) : null, true);
+  $('dx').onclick = closeDrawer; $('lcancel').onclick = closeDrawer;
+  if ($('lcl')) $('lcl').onclick = e => { e.preventDefault(); openClient(client['Код']); };
+  const collect = () => { const o = {}; $('drawer').querySelectorAll('[data-lf]').forEach(el => o[el.dataset.lf] = el.value); return o; };
+  $('lsave').onclick = async () => {
+    const r = await act('lead.save', { id: id || '', fields: collect() }, $('lsave'));
+    if (r) { toast('Заявка сохранена'); openLead(r.savedLead); }
+  };
+  if ($('lclient')) $('lclient').onclick = () => {
+    const f = collect(), biz = f['Форма бизнеса'];
+    editClient(null, { 'Клиент': f['Имя'], 'Имя контактного лица': f['Имя'], 'Тип': biz === 'ИП' ? 'ИП' : (biz === 'Организация' ? 'ООО' : ''), 'Статус': 'активный' }, id, { 'Телефон': f['Телефон'] });
+  };
+}
+function leadStats(d) {
+  const L = d.leads || [], month = d.today ? (() => { const p = parseD(d.today); return p ? ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'][p.getMonth()] + ' ' + p.getFullYear() : ''; })() : '';
+  const feeField = (d.moneyFields || []).find(f => /абонент/i.test(f));
+  const calc = arr => {
+    const won = arr.filter(l => l['Статус'] === 'клиент'), lost = arr.filter(l => l['Статус'] === 'отказ');
+    const fee = won.reduce((a, l) => { const c = d.clientCards.find(x => x['Код'] === l['Код клиента']); return a + (c && feeField ? Number(c[feeField]) || 0 : 0); }, 0);
+    return { all: arr.length, open: arr.filter(l => !LEAD_DONE.includes(l['Статус'])).length, won: won.length, lost: lost.length, conv: arr.length ? Math.round(won.length / arr.length * 100) : 0, fee };
+  };
+  const by = key => { const m = {}; L.forEach(l => { const k = l[key] || '—'; m[k] = m[k] || { all: 0, won: 0 }; m[k].all++; if (l['Статус'] === 'клиент') m[k].won++; }); return Object.entries(m).sort((a, b) => b[1].all - a[1].all); };
+  const reasons = {}; L.filter(l => l['Статус'] === 'отказ').forEach(l => { const k = l['Причина отказа'] || 'не указана'; reasons[k] = (reasons[k] || 0) + 1; });
+  return { month, cur: calc(L.filter(l => l.month === month)), total: calc(L), byService: by('Услуга'), bySource: by('Источник'), reasons: Object.entries(reasons).sort((a, b) => b[1] - a[1]) };
+}
+function leadsDashHtml(d) {
+  if (!d.leads) return '';
+  const s = leadStats(d), row = (lbl, a, b) => `<tr><td>${esc(lbl)}</td><td class="num">${a}</td><td class="num">${b}</td></tr>`;
+  const mini = (title, arr) => arr.length ? `<div><h4 style="margin:12px 0 6px">${esc(title)}</h4><table class="tbl"><tbody>${arr.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v.all !== undefined ? v.all + ' · клиентов ' + v.won : v}</td></tr>`).join('')}</tbody></table></div>` : '';
+  return `<div class="panel pad"><div class="ph"><h3>Заявки и новые клиенты</h3><span>нажмите, чтобы открыть заявки</span></div>
+    <table class="tbl click" id="leadDash"><thead><tr><th></th><th class="num">${esc(s.month)}</th><th class="num">всё время</th></tr></thead><tbody>
+      ${row('Заявок', s.cur.all, s.total.all)}${row('В работе', s.cur.open, s.total.open)}${row('Стали клиентами', s.cur.won, s.total.won)}${row('Отказ', s.cur.lost, s.total.lost)}
+      ${row('Конверсия в клиентов', s.cur.conv + '%', s.total.conv + '%')}${row('Абонентская плата новых клиентов, BYN', s.cur.fee ? money(s.cur.fee) : '—', s.total.fee ? money(s.total.fee) : '—')}</tbody></table>
+    <div class="g2">${mini('По услугам', s.byService)}${mini('По источникам', s.bySource)}</div>${mini('Причины отказа', s.reasons)}</div>`;
+}
 
 // ===================== ЗАДАЧИ =====================
 function vTasks() {
@@ -681,8 +762,8 @@ function openClient(code, tab) {
   bindTaskRows($('ctab'));
   $('ctab').querySelectorAll('[data-reg]').forEach(li => li.onclick = () => showReg(d.regs.find(g => g.code === li.dataset.reg)));
 }
-function editClient(code) {
-  const d = S.data, c = code ? d.clientCards.find(x => x['Код'] === code) : {};
+function editClient(code, prefill, leadId, kPrefill) { // prefill / leadId / kPrefill — «Сделать клиентом» из заявки (v4.0)
+  const d = S.data, c = code ? d.clientCards.find(x => x['Код'] === code) : (prefill || {});
   const fields = d.clientFields.filter(f => !f.readonly);
   const input = f => {
     const v = c[f.name] === undefined ? '' : c[f.name];
@@ -691,7 +772,7 @@ function editClient(code) {
   };
   showDrawer(`<div class="dh"><div><h3>${code ? 'Карточка: ' + esc(c['Клиент']) : 'Новый клиент'}</h3><div class="muted small">Поля со звёздочкой обязательны: без них задачи и напоминания не создаются.</div></div><button class="x" id="dx">×</button></div>
     <div class="db"><div class="g2">${fields.map(f => `<div><label>${esc(f.name)}${f.required ? ' *' : ''}${f.money ? ' · видит только руководитель' : ''}</label>${input(f)}</div>`).join('')}</div>
-      ${contractFormHtml(code)}
+      ${contractFormHtml(code, kPrefill)}
       <div class="actions"><button class="btn" id="csave">Сохранить</button><button class="btn ghost" id="ccancel">Отмена</button></div></div>`, null, true);
   $('dx').onclick = closeDrawer;
   applyIpForm();
@@ -702,7 +783,7 @@ function editClient(code) {
     const out = {}, kout = {};
     $('drawer').querySelectorAll('[data-cf]').forEach(el => out[el.dataset.cf] = el.value);
     $('drawer').querySelectorAll('[data-kf]').forEach(el => kout[el.dataset.kf] = el.value);
-    const r = await act('client.save', Object.assign({ code: code || '', fields: out }, Object.keys(kout).length ? { contract: kout } : {}), $('csave'));
+    const r = await act('client.save', Object.assign({ code: code || '', fields: out }, Object.keys(kout).length ? { contract: kout } : {}, leadId ? { leadId } : {}), $('csave'));
     if (r) { toast('Карточка сохранена'); openClient(r.savedCode); }
   };
 }
@@ -733,10 +814,10 @@ function contractCardHtml(code) {
   const val = f => { const v = k[f.name]; return v === '' || v == null ? '—' : (f.number && /BYN/.test(f.name) ? money(v) : v); };
   return K_GROUPS.map(g => { const fs = F.filter(f => f.group === g && (!ip || f.ip)); return fs.length ? `<h4 style="margin:14px 0 6px">${esc(K_TITLES[g])} <span class="muted small">· для договора</span></h4><div class="kv">${fs.map(f => `<div>${esc(f.name)}</div><div>${esc(val(f))}</div>`).join('')}</div>` : ''; }).join('');
 }
-function contractFormHtml(code) {
+function contractFormHtml(code, kPre) {
   const d = S.data, F = d.contractFields || [];
   if (d.role !== 'руководитель' || !d.contractSheet) return '';
-  const k = code && d.contracts[code] ? d.contracts[code] : Object.fromEntries(F.map(f => [f.name, f.def]));
+  const k = code && d.contracts[code] ? d.contracts[code] : Object.assign(Object.fromEntries(F.map(f => [f.name, f.def])), kPre || {});
   const input = f => {
     const v = k[f.name] == null ? '' : k[f.name];
     if (f.options) return `<select data-kf="${esc(f.name)}"><option value=""></option>${f.options.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;

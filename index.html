@@ -93,6 +93,9 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .tbl tr.click { cursor: pointer; } .tbl tr.click:hover td { background: var(--soft); }
 .tbl tr:last-child td { border-bottom: 0; }
+.tbl th.sel, .tbl td.sel { width: 34px; padding-right: 0; } .tbl td.sel input, .tbl th.sel input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+.bulkbar { background: var(--accent-weak); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.bulkbar[hidden] { display: none; }
 .tbl .sub { color: var(--muted); font-size: 12px; }
 .tbl .num { text-align: right; white-space: nowrap; }
 .tbl td.nm { min-width: 150px; }
@@ -233,9 +236,12 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* хранилище недоступно */ } },
 };
+// v4.3: принимаем только адрес веб-приложения Google Apps Script — ссылка с чужим адресом не уведёт логин и пароль
+const okApi = u => /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(String(u || '')) || /^http:\/\/localhost(:\d+)?\/$/.test(String(u || ''));
 const qsApi = new URLSearchParams(location.search).get('api');
-if (qsApi) store.set('adalin_api', qsApi);
-const API = qsApi || store.get('adalin_api') || '';
+const badApi = !!qsApi && !okApi(qsApi);
+if (qsApi && !badApi) store.set('adalin_api', qsApi);
+const API = (!badApi && qsApi) || (okApi(store.get('adalin_api')) ? store.get('adalin_api') : '');
 const S = { token: store.get('adalin_token'), data: null, as: null, view: null, drawer: null,
   f: { q: '', emp: '', client: '', period: '', st: 'open' }, regSel: null, regQ: '', progPeriod: '' };
 
@@ -246,6 +252,7 @@ const low = s => String(s == null ? '' : s).trim().toLowerCase();
 const parseD = s => { const m = String(s || '').match(/^(\d{2})\.(\d{2})\.(\d{4})$/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
 
 async function call(action, params) {
+  if (badApi) throw new Error('Неверный адрес CRM в ссылке. Откройте ссылку, которую прислал руководитель, и не вводите пароль на других страницах.');
   if (!API) throw new Error('Не указан адрес сервера. Откройте ссылку, которую прислал руководитель (она содержит «?api=…»).');
   const body = { action, params: Object.assign({}, params || {}, S.as && action !== 'login' ? { as: S.as } : {}) };
   if (S.token) body.token = S.token; else if (tg) body.initData = tg.initData;
@@ -433,8 +440,9 @@ function periods() { return [...new Set((S.data.tasks || []).map(t => t.period).
 function taskRows(list, opts = {}) {
   const mgr = S.data.role === 'руководитель';
   if (!list.length) return '<div class="empty">Задач нет</div>';
-  return `<table class="tbl"><thead><tr>${opts.noClient ? '' : '<th>Клиент</th>'}<th>Задача</th><th>Срок</th><th class="num">Сумма, BYN</th><th class="num">Время</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Статус</th></tr></thead><tbody>` +
+  return `<table class="tbl"><thead><tr>${opts.select ? '<th class="sel"><input type="checkbox" id="selAll" title="Отметить все"></th>' : ''}${opts.noClient ? '' : '<th>Клиент</th>'}<th>Задача</th><th>Срок</th><th class="num">Сумма, BYN</th><th class="num">Время</th>${mgr ? '<th>Сотрудник</th>' : ''}<th>Статус</th></tr></thead><tbody>` +
     list.map(t => `<tr class="click" data-task="${esc(t.id)}">
+      ${opts.select ? `<td class="sel"><input type="checkbox" data-sel="${esc(t.id)}" aria-label="Отметить задачу"></td>` : ''}
       ${opts.noClient ? '' : `<td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>`}
       <td>${esc(t.title)}<div class="sub">${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}${t.request ? ' · запрос клиенту от ' + esc(t.request.date) : ''}</div></td>
       <td data-l="Срок">${esc(t.deadline)}${t.payDate && t.payDate !== t.deadline ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
@@ -443,7 +451,7 @@ function taskRows(list, opts = {}) {
       ${mgr ? `<td data-l="Сотрудник">${esc(t.employee)}</td>` : ''}
       <td>${badge(t)}</td></tr>`).join('') + '</tbody></table>';
 }
-function bindTaskRows(root) { root.querySelectorAll('[data-task]').forEach(r => r.onclick = () => openTask(r.dataset.task)); }
+function bindTaskRows(root) { root.querySelectorAll('[data-task]').forEach(r => r.onclick = e => { if (e.target.closest('.sel')) return; openTask(r.dataset.task); }); }
 
 // ===================== АНАЛИТИКА (руководитель) =====================
 function vDash() {
@@ -600,10 +608,11 @@ function vTasks() {
   const byStatus = { open: t => !isDone(t), over: t => t.overdue, wait: isWait, nosum: t => !isDone(t) && needsSum(t), done: isDone, all: () => true };
   list = list.filter(byStatus[f.st] || byStatus.open);
   const clientsOpt = mgr ? d.clients : d.clientCards.map(c => ({ code: c['Код'], name: c['Клиент'] }));
+  const bulk = mgr && !d.viaManager;
   $('content').innerHTML = `
     <div class="toolbar">
       <input type="text" id="fq" placeholder="Поиск по задаче или клиенту" value="${esc(f.q)}" style="width:240px">
-      ${mgr ? `<select id="femp"><option value="">Все сотрудники</option>${d.employees.map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
+      ${mgr ? `<select id="femp"><option value="">Все сотрудники</option>${(d.assignees || d.employees).map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
       <select id="fcl"><option value="">Все клиенты</option>${clientsOpt.map(c => `<option value="${esc(c.code)}" ${c.code === f.client ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
       <select id="fper"><option value="">Все периоды</option>${periods().map(p => `<option ${p === f.period ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
       <span class="grow"></span>
@@ -611,7 +620,10 @@ function vTasks() {
     </div>
     <div class="toolbar"><div class="chips" id="fst">${[['open', 'Открытые'], ['over', 'Просрочено'], ['wait', 'Ждём клиента'], ['nosum', 'Нет суммы'], ['done', 'Выполнено'], ['all', 'Все']]
       .map(c => `<button data-s="${c[0]}" class="${c[0] === f.st ? 'on' : ''}">${c[1]} ${counts[c[0]]}</button>`).join('')}</div></div>
-    <div class="panel">${taskRows(list)}</div>
+    ${bulk ? `<div class="toolbar bulkbar" id="bulk" hidden><b id="bulkN"></b><span class="muted small">Новый срок задачи</span>
+      <input type="text" id="bulkD" placeholder="ДД.ММ.ГГГГ" value="${esc(d.today)}" style="width:130px"><button class="btn sm" id="bulkGo">Перенести срок</button>
+      <button class="btn ghost sm" id="bulkX">Снять отметки</button><span class="muted small">Срок подачи и срок уплаты не меняются.</span></div>` : ''}
+    <div class="panel">${taskRows(list, { select: bulk })}</div>
     ${!mgr ? '<p class="muted small">Здесь только ваши задачи. Выполненные показываются за последние 60 дней.</p>' : ''}`;
   $('fq').oninput = e => { S.f.q = e.target.value; const pos = e.target.selectionStart; vTasks(); $('fq').focus(); $('fq').setSelectionRange(pos, pos); };
   if ($('femp')) $('femp').onchange = e => { S.f.emp = e.target.value; vTasks(); };
@@ -620,6 +632,24 @@ function vTasks() {
   $('fst').onclick = e => { const b = e.target.closest('button'); if (b) { S.f.st = b.dataset.s; vTasks(); } };
   $('newTask').onclick = () => openNewTask(S.f.client);
   bindTaskRows($('content'));
+  if (bulk) bindBulk();
+}
+function bindBulk() {
+  const boxes = () => [...$('content').querySelectorAll('[data-sel]')];
+  const sync = () => {
+    const n = boxes().filter(b => b.checked).length;
+    $('bulk').hidden = !n; $('bulkN').textContent = 'Отмечено: ' + n;
+    const all = $('selAll'); if (all) all.checked = n > 0 && n === boxes().length;
+  };
+  $('content').querySelectorAll('[data-sel], #selAll').forEach(b => b.onclick = e => e.stopPropagation());
+  boxes().forEach(b => b.onchange = sync);
+  if ($('selAll')) $('selAll').onchange = e => { boxes().forEach(b => { b.checked = e.target.checked; }); sync(); };
+  $('bulkX').onclick = () => { boxes().forEach(b => { b.checked = false; }); sync(); };
+  $('bulkGo').onclick = async () => {
+    const ids = boxes().filter(b => b.checked).map(b => b.dataset.sel);
+    const r = await act('task.deadline', { ids, date: $('bulkD').value.trim() }, $('bulkGo'));
+    if (r) toast('Срок перенесён: ' + r.moved);
+  };
 }
 
 function numField(name, label, v) {
@@ -650,6 +680,8 @@ function openTask(id) {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge(t)}${t.closed ? `<span class="muted small">закрыта ${esc(t.closed)}</span>` : ''}<span class="grow" style="flex:1"></span>
         ${reg ? `<button class="btn ghost sm" id="openReg">Открыть регламент</button>` : `<span class="muted small">регламент не привязан</span>`}</div>
       <label>Статус</label><div class="chips" id="seg">${['к выполнению', 'в работе', 'выполнено'].map(s => `<button type="button" data-s="${s}" class="${s === st ? 'on' : ''}">${s}</button>`).join('')}${st === 'ожидает клиента' ? '<button type="button" class="on" data-s="ожидает клиента">ждём клиента</button>' : ''}</div>
+      ${S.data.role === 'руководитель' && !S.data.viaManager ? `<label>Срок задачи</label><input type="text" data-f="Срок задачи" value="${esc(t.deadline)}" placeholder="ДД.ММ.ГГГГ" style="width:160px">
+        <div class="muted small" style="margin-top:4px">Меняется только внутренний срок для исполнителя. Срок подачи и срок уплаты (по нему идут напоминания клиенту) остаются прежними.</div>` : ''}
       ${timeBlock(t)}
       ${sums}${pay}
       <div class="note" style="margin-top:14px"><b style="color:var(--text)">В отчёте клиенту:</b> «${esc(t.result)}»${t.result === t.resultStd ? '' : ' <span class="small">(свой текст)</span>'}
@@ -686,9 +718,9 @@ function openNewTask(clientCode) {
     <label>Что сделать</label><input type="text" id="ntt" placeholder="Например: сверка расчётов с ИМНС">
     <label>Результат для отчёта клиенту</label><input type="text" id="ntr" placeholder="Например: акт сверки подписан, расхождений нет">
     <div class="small muted" style="margin-top:4px">Что получит клиент, когда работа будет выполнена. Пусто — «Выполнено».</div>
-    <div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" placeholder="${esc(d.today)}"></div>
+    <div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" value="${esc(d.today)}" placeholder="ДД.ММ.ГГГГ"></div>
     <div><label>Отчётный период</label><input type="text" id="ntp" value="${esc(d.defaultPeriod)}"></div></div>
-    ${mgr ? `<label>Сотрудник</label><select id="nte">${d.employees.map(e => `<option>${esc(e)}</option>`).join('')}</select>` : ''}
+    ${mgr ? `<label>Сотрудник</label><select id="nte">${(d.assignees || d.employees).map(e => `<option>${esc(e)}</option>`).join('')}</select>` : ''}
     <label>Комментарий (клиент не видит)</label><textarea id="ntm"></textarea>
     <div class="actions"><button class="btn" id="ntb">Создать задачу</button><button class="btn ghost" id="ntx">Отмена</button></div>`);
   const syncEmp = () => { if (!$('nte')) return; const c = cl.find(x => x['Код'] === $('ntc').value); if (c && c['Ответственный']) $('nte').value = c['Ответственный']; };
@@ -795,7 +827,16 @@ function editClient(code, prefill, leadId, kPrefill) { // prefill / leadId / kPr
     const out = {}, kout = {};
     $('drawer').querySelectorAll('[data-cf]').forEach(el => out[el.dataset.cf] = el.value);
     $('drawer').querySelectorAll('[data-kf]').forEach(el => kout[el.dataset.kf] = el.value);
-    const r = await act('client.save', Object.assign({ code: code || '', fields: out }, Object.keys(kout).length ? { contract: kout } : {}, leadId ? { leadId } : {}), $('csave'));
+    let moveTasks = false;
+    const oldResp = code ? String(c['Ответственный'] || '') : '';
+    if (oldResp && 'Ответственный' in out && out['Ответственный'] && out['Ответственный'] !== oldResp) {
+      const n = d.tasks.filter(t => t.clientCode === code && t.employee === oldResp && !isDone(t)).length;
+      if (n) moveTasks = await ask(`<h3>Ответственный меняется</h3><p>У клиента <b>${esc(c['Клиент'])}</b> открытых задач на «${esc(oldResp)}»: <b>${n}</b>.</p>
+        <p class="muted small">Будущие задачи в любом случае пойдут на «${esc(out['Ответственный'])}». Налоги и декларации остаются на руководителе.</p>`,
+        'Передать ' + n + ' задач(и) новому ответственному', 'Нет, текущие доделает ' + oldResp);
+      if (moveTasks === null) return;
+    }
+    const r = await act('client.save', Object.assign({ code: code || '', fields: out }, Object.keys(kout).length ? { contract: kout } : {}, leadId ? { leadId } : {}, moveTasks ? { moveTasks: true } : {}), $('csave'));
     if (r) { toast('Карточка сохранена'); openClient(r.savedCode); }
   };
 }
@@ -1358,6 +1399,15 @@ function closeDrawer() { const dr = $('drawer'); if (!dr) return; dr.classList.r
 $('shade').onclick = closeDrawer;
 function openModal(html) { $('modalWrap').innerHTML = `<div class="modal-shade" id="mshade"></div><div class="modal" role="dialog">${html}</div>`; $('mshade').onclick = closeModal; }
 function closeModal() { $('modalWrap').innerHTML = ''; }
+// Вопрос с двумя ответами: true — да, false — нет, null — окно закрыли
+function ask(html, yes, no) {
+  return new Promise(res => {
+    openModal(`${html}<div class="actions"><button class="btn" id="askY">${esc(yes)}</button><button class="btn ghost" id="askN">${esc(no)}</button></div>`);
+    $('askY').onclick = () => { closeModal(); res(true); };
+    $('askN').onclick = () => { closeModal(); res(false); };
+    $('mshade').onclick = () => { closeModal(); res(null); };
+  });
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('modalWrap').innerHTML) closeModal(); else closeDrawer(); } });
 if (location.hash) S.view = location.hash.slice(1);
 

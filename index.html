@@ -136,6 +136,21 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .reglist button:hover { background: var(--soft); } .reglist button.on { background: var(--accent-weak); border-left-color: var(--accent); }
 .reglist button small { display: block; color: var(--muted2); font-size: 12px; }
 
+/* ---------- отчётность в органы и зарплатная доска (v4.4) ---------- */
+.fsteps { display: flex; gap: 4px; flex-wrap: wrap; }
+.fstep { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted2); white-space: nowrap; }
+.fstep.on { background: var(--accent-weak); border-color: var(--accent-weak); color: var(--accent); }
+.fset { padding: 4px 6px; font-size: 12px; }
+.pcell { line-height: 1.35; } .pcell.click { cursor: pointer; } .pcell .badge { margin-top: 3px; }
+.pcal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.phead { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; }
+.pday { min-height: 92px; border: 1px solid var(--line); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 3px; background: var(--panel); min-width: 0; }
+.pday.wk { background: var(--soft); } .pday.past { opacity: .6; } .pday.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.pday.empty-d { border: 0; background: none; }
+.pnum { font-family: var(--head); font-weight: 600; font-size: 12px; color: var(--muted); }
+.pchip { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 11px; border: 0; border-radius: 6px; padding: 2px 6px; cursor: pointer; }
+.pchip.zp { background: var(--accent); color: #fff; } .pchip.av { background: var(--mist); color: var(--accent); border: 1px solid var(--aqua); }
+@media (max-width: 900px) { .pcal { gap: 3px; } .pday { min-height: 64px; padding: 3px; } .pchip { font-size: 10px; padding: 1px 3px; } .phead { font-size: 10px; } }
 /* ---------- боковая панель и окна ---------- */
 .shade { position: fixed; inset: 0; background: rgba(23,42,51,.32); z-index: 20; display: none; }
 .shade.open { display: block; }
@@ -347,17 +362,19 @@ async function start() {
 function navFor(d) {
   const openReq = (d.requests || []).length;
   const over = (d.tasks || []).filter(t => t.overdue).length;
+  const todayT = d.today ? parseD(d.today).getTime() : 0;
+  const fUrg = (d.tasks || []).filter(t => t.filing && fUrgent(t.filing, todayT)).length;
   if (d.role === 'клиент') return [
     { sec: null, items: [['deadlines', 'Сроки платежей'], ['need', 'Что нужно от вас', d.requests.length], ['reports', 'Отчёты']] }];
   if (d.role === 'сотрудник') return [
-    { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['clients', 'Мои клиенты'], ['time', 'Моё время']] },
+    { sec: null, items: [['tasks', 'Мои задачи', over], ['requests', 'Запросы клиентам', openReq], ['filings', 'Отчётность в органы', fUrg], ['payroll', 'Зарплатная доска'], ['clients', 'Мои клиенты'], ['time', 'Моё время']] },
     { sec: 'Справочники', items: [['regs', 'Регламенты']] }];
   return [
-    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', (d.leads || []).filter(l => l['Статус'] === 'новая').length, d.leads === undefined ? 'этап 4' : null], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['reports', 'Отчёты', (d.reports || []).filter(r => r.status === 'черновик').length]] },
+    { sec: null, items: [['dash', 'Аналитика'], ['leads', 'Заявки', (d.leads || []).filter(l => l['Статус'] === 'новая').length, d.leads === undefined ? 'этап 4' : null], ['clients', 'Клиенты'], ['tasks', 'Задачи', over], ['requests', 'Запросы клиентам', openReq], ['filings', 'Отчётность в органы', fUrg], ['payroll', 'Зарплатная доска'], ['reports', 'Отчёты', (d.reports || []).filter(r => r.status === 'черновик').length]] },
     { sec: 'Управление', items: [['time', 'Рабочее время'], ['users', 'Сотрудники и доступы'], ['regs', 'Регламенты']] }];
 }
 const TITLES = { dash: 'Аналитика', leads: 'Заявки', clients: 'Клиенты', tasks: 'Задачи', requests: 'Запросы клиентам', reports: 'Отчёты',
-  users: 'Сотрудники и доступы', regs: 'Регламенты', deadlines: 'Сроки платежей', need: 'Что нужно от вас', time: 'Рабочее время' };
+  users: 'Сотрудники и доступы', regs: 'Регламенты', deadlines: 'Сроки платежей', need: 'Что нужно от вас', time: 'Рабочее время', filings: 'Отчётность в органы', payroll: 'Зарплатная доска' };
 
 function render() {
   const d = S.data; if (!d) return;
@@ -406,7 +423,7 @@ function render() {
   if ($('tbStop')) $('tbStop').onclick = async () => { const r = await act('time.stop', {}, $('tbStop')); if (r) toast(r.timer.stoppedMin ? 'Записано: ' + fmtMin(r.timer.stoppedMin) : 'Меньше минуты — не записано'); };
   if ($('tbOpen')) $('tbOpen').onclick = () => openTask(d.running.taskId);
   ({ dash: vDash, leads: vLeads, clients: vClients, tasks: vTasks, requests: vRequests, users: vUsers, regs: vRegs, time: vTime,
-     deadlines: vDeadlines, need: vNeed, reports: vReports })[S.view]();
+     deadlines: vDeadlines, need: vNeed, reports: vReports, filings: vFilings, payroll: vPayroll })[S.view]();
   if (S.drawer) S.drawer();
 }
 function longDate(s) {
@@ -451,7 +468,7 @@ function taskRows(list, opts = {}) {
       ${mgr ? `<td data-l="Сотрудник">${esc(t.employee)}</td>` : ''}
       <td>${badge(t)}</td></tr>`).join('') + '</tbody></table>';
 }
-function bindTaskRows(root) { root.querySelectorAll('[data-task]').forEach(r => r.onclick = e => { if (e.target.closest('.sel')) return; openTask(r.dataset.task); }); }
+function bindTaskRows(root) { root.querySelectorAll('[data-task]').forEach(r => r.onclick = e => { if (e.target.closest('.sel, button, select, input')) return; openTask(r.dataset.task); }); }
 
 // ===================== АНАЛИТИКА (руководитель) =====================
 function vDash() {
@@ -730,6 +747,130 @@ function openNewTask(clientCode) {
     const r = await act('task.create', { clientCode: $('ntc').value, title: $('ntt').value, deadline: $('ntd').value.trim(), period: $('ntp').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value, result: $('ntr').value }, $('ntb'));
     if (r) { closeModal(); toast('Задача создана'); openTask(r.createdId); }
   };
+}
+
+
+// ===================== ОТЧЁТНОСТЬ В ОРГАНЫ (v4.4) =====================
+// Отчёт — задача со сроком подачи. Шаги: подготовлен → отправлен → принят инспектором → налог оплачен.
+const F_ORDER = ['', 'подготовлен', 'отправлен', 'принят', 'оплачен'];
+const F_LABEL = { '': 'не подготовлен', 'подготовлен': 'подготовлен', 'отправлен': 'отправлен', 'принят': 'принят инспектором', 'оплачен': 'налог оплачен' };
+const fSteps = f => F_ORDER.filter(x => x !== 'оплачен' || f.needsPay);
+const fNext = f => { const st = fSteps(f); return st[st.indexOf(f.status) + 1] || null; };
+const fUrgent = (f, today) => (f.status === '' || f.status === 'подготовлен') && f.dts && f.dts <= today + 3 * 86400000;
+const fKind = t => {
+  const k = String(t.title || '').replace(/\s+(за|на)\s+.*$/, '').replace(/^Подготовить и подать |^Подготовить |^Подать /, '').replace(/^декларацию/, 'декларация');
+  return k.charAt(0).toUpperCase() + k.slice(1);
+};
+function fBadge(f, today) {
+  const cls = f.finished ? 'b-done' : f.status === 'принят' || f.status === 'отправлен' ? 'b-work' : fUrgent(f, today) ? 'b-over' : f.status === 'подготовлен' ? 'b-wait' : '';
+  return `<span class="badge ${cls}">${esc(F_LABEL[f.status])}${!f.needsPay && f.status === 'принят' ? ' · платить нечего' : ''}</span>`;
+}
+function vFilings() {
+  const d = S.data, mgr = d.role === 'руководитель', today = parseD(d.today).getTime();
+  const f = S.ff || (S.ff = { st: 'active', period: '', kind: '', emp: '' });
+  let all = d.tasks.filter(t => t.filing);
+  if (f.emp) all = all.filter(t => t.employee === f.emp);
+  const periods = [...new Set(all.map(t => t.period))], kinds = [...new Set(all.map(fKind))].sort();
+  if (f.period) all = all.filter(t => t.period === f.period);
+  if (f.kind) all = all.filter(t => fKind(t) === f.kind);
+  const by = { active: t => !t.filing.finished, urgent: t => fUrgent(t.filing, today), none: t => t.filing.status === '',
+    'подготовлен': t => t.filing.status === 'подготовлен', 'отправлен': t => t.filing.status === 'отправлен', 'принят': t => t.filing.status === 'принят' && t.filing.needsPay,
+    done: t => t.filing.finished, all: () => true };
+  const chips = [['active', 'В работе'], ['urgent', 'Срок близко'], ['none', 'Не подготовлены'], ['подготовлен', 'Подготовлены'], ['отправлен', 'Отправлены'], ['принят', 'Принят — ждём оплату'], ['done', 'Завершены'], ['all', 'Все']];
+  const list = all.filter(by[f.st] || by.active).sort((a, b) => a.filing.dts - b.filing.dts);
+  const steps = t => fSteps(t.filing).slice(1).map(s => `<span class="fstep ${t.filing.dates[s] ? 'on' : ''}" title="${esc(F_LABEL[s])}">${esc(F_LABEL[s].split(' ')[0])}${t.filing.dates[s] ? ' ' + esc(t.filing.dates[s].slice(0, 5)) : ''}</span>`).join('');
+  $('content').innerHTML = `
+    <p class="muted" style="margin-top:0">Налоговые декларации и отчёты в ФСЗН и Белгосстрах. Отметка «отправлен» закрывает задачу, дальше статус ведётся здесь. После «налог оплачен» клиенту больше не напоминаем об оплате.</p>
+    <div class="toolbar">
+      ${mgr ? `<select id="ffe"><option value="">Все сотрудники</option>${(d.assignees || d.employees).map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
+      <select id="ffp"><option value="">Все периоды</option>${periods.map(p => `<option ${p === f.period ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <select id="ffk"><option value="">Все отчёты</option>${kinds.map(k => `<option ${k === f.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>
+    </div>
+    <div class="toolbar"><div class="chips" id="ffs">${chips.map(c => `<button data-s="${c[0]}" class="${c[0] === f.st ? 'on' : ''}">${c[1]} ${all.filter(by[c[0]]).length}</button>`).join('')}</div></div>
+    <div class="panel twrap">${list.length ? `<table class="tbl"><thead><tr><th>Клиент</th><th>Отчёт</th><th>Срок подачи</th><th>Статус</th><th>Шаги</th>${mgr ? '<th>Исполнитель</th>' : ''}<th></th></tr></thead><tbody>
+      ${list.map(t => { const n = fNext(t.filing); return `<tr class="click" data-task="${esc(t.id)}">
+        <td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>
+        <td>${esc(fKind(t))}<div class="sub">${esc(t.period)}</div></td>
+        <td data-l="Срок подачи">${esc(t.filing.date)}${t.payDate ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
+        <td data-l="Статус">${fBadge(t.filing, today)}</td>
+        <td data-l="Шаги"><div class="fsteps">${steps(t)}</div></td>
+        ${mgr ? `<td data-l="Исполнитель">${esc(t.employee)}</td>` : ''}
+        <td><div class="acts">${n ? `<button class="btn sm" data-fnext="${esc(t.id)}" data-st="${esc(n)}">${esc(F_LABEL[n][0].toUpperCase() + F_LABEL[n].slice(1))}</button>` : ''}
+          <select class="fset" data-fset="${esc(t.id)}" aria-label="Изменить статус">${fSteps(t.filing).map(s => `<option value="${esc(s)}" ${s === t.filing.status ? 'selected' : ''}>${esc(F_LABEL[s])}</option>`).join('')}</select></div></td></tr>`; }).join('')}
+      </tbody></table>` : '<div class="empty">Отчётов по выбранным условиям нет</div>'}</div>`;
+  if ($('ffe')) $('ffe').onchange = e => { f.emp = e.target.value; vFilings(); };
+  $('ffp').onchange = e => { f.period = e.target.value; vFilings(); };
+  $('ffk').onchange = e => { f.kind = e.target.value; vFilings(); };
+  $('ffs').onclick = e => { const b = e.target.closest('button'); if (b) { f.st = b.dataset.s; vFilings(); } };
+  const setSt = async (id, st, el) => { const r = await act('filing.set', { id, status: st }, el); if (r) toast(st === 'отправлен' ? 'Отмечено «отправлен», задача закрыта' : 'Статус: ' + F_LABEL[st]); };
+  $('content').querySelectorAll('[data-fnext]').forEach(b => b.onclick = () => setSt(b.dataset.fnext, b.dataset.st, b));
+  $('content').querySelectorAll('[data-fset]').forEach(el => el.onchange = () => setSt(el.dataset.fset, el.value, null));
+  bindTaskRows($('content'));
+}
+
+// ===================== ЗАРПЛАТНАЯ ДОСКА (v4.4) =====================
+// Клиенты с работниками: даты аванса и зарплаты в месяце, суммы и состояние. Таблица или календарь.
+const yesV = v => /^да/i.test(String(v == null ? '' : v).trim());
+const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const dd = x => String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0');
+function payEvents(d, y, m) {
+  const last = new Date(y, m + 1, 0).getDate();
+  const cl = d.clientCards.filter(c => yesV(c['Есть работники']) && (!c['Статус'] || low(c['Статус']) === 'активный'));
+  return cl.map(c => {
+    const ev = ['AVANS', 'ZP'].map(kind => {
+      const inMonth = t => { const x = parseD(t.payDate || t.deadline); return x && x.getFullYear() === y && x.getMonth() === m; };
+      const t = d.tasks.find(x => x.clientCode === c['Код'] && x.rule === kind && inMonth(x));
+      const day = Number(c[kind === 'ZP' ? 'День выплаты ЗП' : 'День выплаты аванса']) || 0;
+      const date = t ? parseD(t.payDate || t.deadline) : day ? new Date(y, m, Math.min(day, last)) : null;
+      if (!date) return null;
+      const sum = t ? (kind === 'ZP' ? t['Сумма к выплате'] : t['Сумма']) : '';
+      let st = ['', 'по карточке']; // задачи на этот месяц ещё нет (создаётся 1-го числа)
+      if (t) st = isDone(t) ? ['b-done', 'рассчитано'] : sum === '' ? ['b-over', 'нет суммы'] : t['Платёжка'] === 'подготовлена' ? ['b-done', 'платёжка готова'] : t['Платёжка'] === 'клиент платит сам' ? ['b-work', 'платит сам'] : ['b-wait', 'сумма есть'];
+      return { kind, label: kind === 'ZP' ? 'Зарплата' : 'Аванс', date, task: t, sum, st };
+    }).filter(Boolean);
+    return { c, ev };
+  }).filter(x => x.ev.length);
+}
+function vPayroll() {
+  const d = S.data, mgr = d.role === 'руководитель', base = parseD(d.today);
+  const off = S.payOff || 0, view = S.payView || 'table';
+  const first = new Date(base.getFullYear(), base.getMonth() + off, 1), y = first.getFullYear(), m = first.getMonth();
+  const label = first.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const rows = payEvents(d, y, m);
+  const todayT = base.getTime();
+  const nextT = r => { const up = r.ev.map(e => e.date.getTime()).filter(x => x >= todayT); return up.length ? Math.min(...up) : 9e15 + Math.min(...r.ev.map(e => e.date.getTime())); };
+  rows.sort((a, b) => nextT(a) - nextT(b));
+  const cell = e => e ? `<div class="pcell${e.task ? ' click' : ''}" ${e.task ? `data-open="${esc(e.task.id)}"` : ''}><b>${dd(e.date)}</b> <span class="muted small">${WD[e.date.getDay()]}</span>
+      ${e.sum !== '' ? `<div>${esc(money(e.sum))} BYN</div>` : ''}<span class="badge ${e.st[0]}">${esc(e.st[1])}</span></div>` : '<span class="muted">—</span>';
+  let body;
+  if (!rows.length) body = '<div class="panel empty">Клиентов с работниками нет — отметьте «Есть работники» и дни выплат в карточках.</div>';
+  else if (view === 'table') body = `<div class="panel twrap"><table class="tbl"><thead><tr><th>Клиент</th><th>Аванс</th><th>Зарплата</th>${mgr ? '<th>Ответственный</th>' : ''}</tr></thead><tbody>
+    ${rows.map(r => `<tr><td class="nm" data-l="Клиент"><b>${esc(r.c['Клиент'])}</b><div class="sub">${esc(r.c['Тип'] || '')}</div></td>
+      <td data-l="Аванс">${cell(r.ev.find(e => e.kind === 'AVANS'))}</td><td data-l="Зарплата">${cell(r.ev.find(e => e.kind === 'ZP'))}</td>
+      ${mgr ? `<td data-l="Ответственный">${esc(r.c['Ответственный'] || '')}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  else {
+    const byDay = {}; rows.forEach(r => r.ev.forEach(e => { (byDay[e.date.getDate()] = byDay[e.date.getDate()] || []).push({ e, c: r.c }); }));
+    const lead = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), cells = [];
+    for (let i = 0; i < lead; i++) cells.push('<div class="pday empty-d"></div>');
+    for (let day = 1; day <= days; day++) {
+      const dt = new Date(y, m, day), wk = dt.getDay() === 0 || dt.getDay() === 6, isToday = dt.getTime() === todayT;
+      cells.push(`<div class="pday${wk ? ' wk' : ''}${isToday ? ' today' : ''}${dt.getTime() < todayT ? ' past' : ''}"><div class="pnum">${day}</div>
+        ${(byDay[day] || []).map(x => `<button class="pchip ${x.e.kind === 'ZP' ? 'zp' : 'av'}" ${x.e.task ? `data-open="${esc(x.e.task.id)}"` : ''} title="${esc(x.e.label + ' · ' + x.c['Клиент'] + (x.e.sum !== '' ? ' · ' + money(x.e.sum) + ' BYN' : '') + ' · ' + x.e.st[1])}">${x.e.kind === 'ZP' ? 'ЗП' : 'А'} · ${esc(x.c['Клиент'])}</button>`).join('')}</div>`);
+    }
+    body = `<div class="panel pad"><div class="pcal">${['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(w => `<div class="phead">${w}</div>`).join('')}${cells.join('')}</div>
+      <p class="muted small" style="margin:10px 0 0"><span class="pchip av">А</span> аванс · <span class="pchip zp">ЗП</span> зарплата. Нажмите, чтобы открыть задачу.</p></div>`;
+  }
+  $('content').innerHTML = `
+    <div class="toolbar"><button class="btn ghost sm" id="pPrev" aria-label="Предыдущий месяц">‹</button><b style="min-width:150px;text-align:center">${esc(label)}</b><button class="btn ghost sm" id="pNext" aria-label="Следующий месяц">›</button>
+      ${off ? '<button class="linkbtn" id="pNow">текущий месяц</button>' : ''}<span class="grow"></span>
+      <div class="chips" id="pView"><button data-v="table" class="${view === 'table' ? 'on' : ''}">Таблица</button><button data-v="cal" class="${view === 'cal' ? 'on' : ''}">Календарь</button></div></div>
+    ${body}
+    <p class="muted small">Даты — из задач «Зарплата» и «Аванс» (с переносом с выходных). Если задачи на месяц ещё нет — день из карточки клиента («по карточке»). Клиентов с выплатами: ${rows.length}.</p>`;
+  $('pPrev').onclick = () => { S.payOff = off - 1; vPayroll(); };
+  $('pNext').onclick = () => { S.payOff = off + 1; vPayroll(); };
+  if ($('pNow')) $('pNow').onclick = () => { S.payOff = 0; vPayroll(); };
+  $('pView').onclick = e => { const b = e.target.closest('button'); if (b) { S.payView = b.dataset.v; vPayroll(); } };
+  $('content').querySelectorAll('[data-open]').forEach(el => el.onclick = () => openTask(el.dataset.open));
 }
 
 // ===================== ЗАПРОСЫ КЛИЕНТАМ =====================

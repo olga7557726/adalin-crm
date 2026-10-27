@@ -169,6 +169,7 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto; background: var(--panel); border-radius: var(--radius); z-index: 31; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
 .modal h3 { margin: 0 0 6px; }
+.modal.wide { width: min(860px, calc(100% - 32px)); }
 .modal-shade { position: fixed; inset: 0; background: rgba(23,42,51,.4); z-index: 30; }
 .copyrow { display: flex; gap: 6px; } .copyrow input { flex: 1; font-family: ui-monospace, Consolas, monospace; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; z-index: 40; font-size: 13px; max-width: calc(100% - 32px); }
@@ -461,7 +462,7 @@ function taskRows(list, opts = {}) {
     list.map(t => `<tr class="click" data-task="${esc(t.id)}">
       ${opts.select ? `<td class="sel"><input type="checkbox" data-sel="${esc(t.id)}" aria-label="Отметить задачу"></td>` : ''}
       ${opts.noClient ? '' : `<td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>`}
-      <td>${esc(t.title)}<div class="sub">${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}${t.request ? ' · запрос клиенту от ' + esc(t.request.date) : ''}</div></td>
+      <td>${esc(t.title)}<div class="sub">${esc(t.period)}${t.type === 'разовая' || t.type === 'постоянная' ? ' · ' + t.type : ''}${t.request ? ' · запрос клиенту от ' + esc(t.request.date) : ''}</div></td>
       <td data-l="Срок">${esc(t.deadline)}${t.payDate && t.payDate !== t.deadline ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
       <td class="num" data-l="Сумма">${sumText(t) || ''}</td>
       <td class="num" data-l="Время">${timeCell(t)}</td>
@@ -633,7 +634,8 @@ function vTasks() {
       <select id="fcl"><option value="">Все клиенты</option>${clientsOpt.map(c => `<option value="${esc(c.code)}" ${c.code === f.client ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
       <select id="fper"><option value="">Все периоды</option>${periods().map(p => `<option ${p === f.period ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
       <span class="grow"></span>
-      <button class="btn" id="newTask">+ Разовая задача</button>
+      <button class="btn ghost" id="recList">Постоянные задачи${(d.recurring || []).filter(r => r.active).length ? ' (' + d.recurring.filter(r => r.active).length + ')' : ''}</button>
+      <button class="btn" id="newTask">+ Задача</button>
     </div>
     <div class="toolbar"><div class="chips" id="fst">${[['open', 'Открытые'], ['over', 'Просрочено'], ['wait', 'Ждём клиента'], ['nosum', 'Нет суммы'], ['done', 'Выполнено'], ['all', 'Все']]
       .map(c => `<button data-s="${c[0]}" class="${c[0] === f.st ? 'on' : ''}">${c[1]} ${counts[c[0]]}</button>`).join('')}</div></div>
@@ -648,6 +650,7 @@ function vTasks() {
   $('fper').onchange = e => { S.f.period = e.target.value; vTasks(); };
   $('fst').onclick = e => { const b = e.target.closest('button'); if (b) { S.f.st = b.dataset.s; vTasks(); } };
   $('newTask').onclick = () => openNewTask(S.f.client);
+  $('recList').onclick = openRecurList;
   bindTaskRows($('content'));
   if (bulk) bindBulk();
 }
@@ -691,7 +694,7 @@ function openTask(id) {
         <label>Что именно (увидит клиент)</label><textarea id="rtxt" placeholder="Например: выписка по счёту в Беларусбанке за 01–15.10"></textarea>
         <div class="actions"><button class="btn ghost" id="sendReq">Отправить запрос клиенту</button></div>
         <div class="muted small" style="margin-top:6px">Клиент получит сообщение в Telegram сразу. Без ответа — повтор на следующий рабочий день, потом вопрос уйдёт руководителю.</div></div>`);
-  showDrawer(`<div class="dh"><div><h3>${esc(t.title)}</h3><div class="muted small">${esc(t.client)} · отчётный период: ${esc(t.period)}${t.type === 'разовая' ? ' · разовая' : ''}</div>
+  showDrawer(`<div class="dh"><div><h3>${esc(t.title)}</h3><div class="muted small">${esc(t.client)} · отчётный период: ${esc(t.period)}${t.type === 'разовая' || t.type === 'постоянная' ? ' · ' + t.type : ''}</div>
       <div class="muted small">Срок задачи ${esc(t.deadline)}${t.payDate ? ' · срок уплаты ' + esc(t.payDate) : ''} · ${esc(t.employee)}</div></div><button class="x" id="dx" aria-label="Закрыть">×</button></div>
     <div class="db">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge(t)}${t.closed ? `<span class="muted small">закрыта ${esc(t.closed)}</span>` : ''}<span class="grow" style="flex:1"></span>
@@ -727,26 +730,77 @@ function openTask(id) {
   };
   if ($('closeReq')) $('closeReq').onclick = async () => { if (await act('request.close', { id: t.request.id }, $('closeReq'))) toast('Запрос закрыт, клиенту отправлено «Спасибо, получили»'); };
 }
-function openNewTask(clientCode) {
+// v4.5: одна форма — разовая или постоянная задача («Повторять»); rec — правка постоянной
+const R_FREQ = [['еженедельно', 'каждую неделю'], ['ежемесячно', 'каждый месяц'], ['ежеквартально', 'каждый квартал'], ['ежегодно', 'каждый год']];
+const R_WD = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+const R_MON = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+function openNewTask(clientCode, rec) {
   const d = S.data, mgr = d.role === 'руководитель';
   const cl = d.clientCards;
-  openModal(`<h3>Разовая задача</h3><div class="muted small">Попадёт в отчёт клиенту за выбранный период.</div>
-    <label>Клиент</label><select id="ntc">${cl.map(c => `<option value="${esc(c['Код'])}" ${c['Код'] === clientCode ? 'selected' : ''}>${esc(c['Клиент'])}</option>`).join('')}</select>
-    <label>Что сделать</label><input type="text" id="ntt" placeholder="Например: сверка расчётов с ИМНС">
-    <label>Результат для отчёта клиенту</label><input type="text" id="ntr" placeholder="Например: акт сверки подписан, расхождений нет">
-    <div class="small muted" style="margin-top:4px">Что получит клиент, когда работа будет выполнена. Пусто — «Выполнено».</div>
-    <div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" value="${esc(d.today)}" placeholder="ДД.ММ.ГГГГ"></div>
-    <div><label>Отчётный период</label><input type="text" id="ntp" value="${esc(d.defaultPeriod)}"></div></div>
+  const r = rec || {}, opt = (v, label, cur) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(label)}</option>`;
+  openModal(`<h3>${rec ? 'Постоянная задача' : 'Новая задача'}</h3>
+    <label>Клиент</label><select id="ntc">${cl.map(c => `<option value="${esc(c['Код'])}" ${c['Код'] === (r.clientCode || clientCode) ? 'selected' : ''}>${esc(c['Клиент'])}</option>`).join('')}</select>
+    <label>Что сделать</label><input type="text" id="ntt" value="${esc(r.title || '')}" placeholder="Например: сверка расчётов с ИМНС">
+    <label>Повторять</label><select id="ntf">${rec ? '' : opt('', 'не повторять — разовая задача', '')}${R_FREQ.map(x => opt(x[0], x[1], r.freq)).join('')}</select>
+    <div id="ntOnce"><div class="g2"><div><label>Срок (ДД.ММ.ГГГГ)</label><input type="text" id="ntd" value="${esc(d.today)}" placeholder="ДД.ММ.ГГГГ"></div>
+      <div><label>Отчётный период</label><input type="text" id="ntp" value="${esc(d.defaultPeriod)}"></div></div></div>
+    <div id="ntRec" hidden><div class="g2">
+      <div id="ntWdB"><label>День недели</label><select id="ntwd">${R_WD.map(w => opt(w, w, r.day)).join('')}</select></div>
+      <div id="ntQB"><label>Месяц квартала</label><select id="ntqm">${[1, 2, 3].map(m => opt(m, m + '-й месяц', r.month)).join('')}</select></div>
+      <div id="ntYB"><label>Месяц</label><select id="ntym">${R_MON.map((m, i) => opt(i + 1, m, r.month)).join('')}</select></div>
+      <div id="ntDB"><label>Число месяца</label><input type="text" inputmode="numeric" id="ntdn" value="${esc(typeof r.day === 'number' ? r.day : '')}" placeholder="например, 10"></div>
+      <div><label>План, мин</label><input type="text" inputmode="numeric" id="ntpl" value="${esc(r.plan === undefined ? '' : r.plan)}" placeholder="необязательно"></div></div>
+      <div class="small muted" style="margin-top:6px">Задачи на месяц создаются сами 1-го числа, ближайшие в этом месяце — сразу. Срок на выходном — предыдущий рабочий день.</div></div>
+    <label>Результат для отчёта клиенту</label><input type="text" id="ntr" value="${esc(r.result || '')}" placeholder="Например: акт сверки подписан, расхождений нет">
+    <div class="small muted" style="margin-top:4px" id="ntrh"></div>
     ${mgr ? `<label>Сотрудник</label><select id="nte">${(d.assignees || d.employees).map(e => `<option>${esc(e)}</option>`).join('')}</select>` : ''}
-    <label>Комментарий (клиент не видит)</label><textarea id="ntm"></textarea>
-    <div class="actions"><button class="btn" id="ntb">Создать задачу</button><button class="btn ghost" id="ntx">Отмена</button></div>`);
+    <label>Комментарий (клиент не видит)</label><textarea id="ntm">${esc(r.comment || '')}</textarea>
+    <div class="actions"><button class="btn" id="ntb">${rec ? 'Сохранить' : 'Создать задачу'}</button><button class="btn ghost" id="ntx">Отмена</button></div>`);
   const syncEmp = () => { if (!$('nte')) return; const c = cl.find(x => x['Код'] === $('ntc').value); if (c && c['Ответственный']) $('nte').value = c['Ответственный']; };
-  syncEmp(); $('ntc').onchange = syncEmp;
+  const syncFreq = () => {
+    const fr = $('ntf').value;
+    $('ntOnce').hidden = !!fr; $('ntRec').hidden = !fr;
+    $('ntWdB').hidden = fr !== 'еженедельно'; $('ntDB').hidden = fr === 'еженедельно';
+    $('ntQB').hidden = fr !== 'ежеквартально'; $('ntYB').hidden = fr !== 'ежегодно';
+    $('ntrh').textContent = fr ? 'Заполнено — каждый раз попадёт в отчёт клиенту. Пусто — задача только внутренняя, в отчёт не попадает.'
+      : 'Что получит клиент, когда работа будет выполнена. Пусто — «Выполнено».';
+    $('ntb').textContent = rec ? 'Сохранить' : (fr ? 'Создать постоянную задачу' : 'Создать задачу');
+  };
+  if (rec && $('nte')) $('nte').value = r.employee; else syncEmp();
+  syncFreq(); $('ntc').onchange = syncEmp; $('ntf').onchange = syncFreq;
   $('ntx').onclick = closeModal;
   $('ntb').onclick = async () => {
-    const r = await act('task.create', { clientCode: $('ntc').value, title: $('ntt').value, deadline: $('ntd').value.trim(), period: $('ntp').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value, result: $('ntr').value }, $('ntb'));
-    if (r) { closeModal(); toast('Задача создана'); openTask(r.createdId); }
+    const fr = $('ntf').value, common = { clientCode: $('ntc').value, title: $('ntt').value, employee: $('nte') ? $('nte').value : '', comment: $('ntm').value, result: $('ntr').value };
+    if (!fr) {
+      const res = await act('task.create', Object.assign(common, { deadline: $('ntd').value.trim(), period: $('ntp').value }), $('ntb'));
+      if (res) { closeModal(); toast('Задача создана'); openTask(res.createdId); }
+      return;
+    }
+    const res = await act('recur.save', Object.assign(common, { id: r.id || '', freq: fr, day: fr === 'еженедельно' ? $('ntwd').value : $('ntdn').value.trim(),
+      month: fr === 'ежеквартально' ? $('ntqm').value : (fr === 'ежегодно' ? $('ntym').value : ''), plan: $('ntpl').value.trim(), active: rec ? r.active : true }), $('ntb'));
+    if (res) { closeModal(); toast((rec ? 'Сохранено' : 'Постоянная задача создана') + (res.recur.created ? '. Задач в этом месяце: ' + res.recur.created : '. Первая появится 1-го числа нужного месяца')); }
   };
+}
+// Список постоянных задач: правка, остановка, возобновление
+function openRecurList() {
+  const d = S.data, mgr = d.role === 'руководитель';
+  const list = (d.recurring || []).slice().sort((a, b) => (b.active - a.active) || String(a.client).localeCompare(String(b.client), 'ru'));
+  openModal(`<h3>Постоянные задачи</h3><div class="muted small">Повторяются сами. Изменения касаются будущих задач, уже созданные не меняются.</div>
+    ${list.length ? `<div style="max-height:60vh;overflow:auto;margin-top:10px"><table class="tbl"><thead><tr><th>Клиент</th><th>Задача</th><th>Как часто</th>${mgr ? '<th>Сотрудник</th>' : ''}<th></th></tr></thead><tbody>${list.map(r => `<tr${r.active ? '' : ' style="opacity:.55"'}>
+      <td>${esc(r.client)}</td><td>${esc(r.title)}<div class="sub">${r.result ? 'в отчёт: ' + esc(r.result) : 'внутренняя, в отчёт не попадает'}</div></td><td>${esc(r.text)}${r.active ? '' : '<div class="sub">остановлена</div>'}</td>
+      ${mgr ? `<td>${esc(r.employee)}</td>` : ''}
+      <td style="white-space:nowrap"><button class="btn ghost sm" data-redit="${esc(r.id)}">Изменить</button> <button class="btn ghost sm" data-ract="${esc(r.id)}">${r.active ? 'Остановить' : 'Возобновить'}</button></td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="muted" style="margin-top:12px">Пока нет. Поставьте: «+ Задача» → «Повторять».</p>'}
+    <div class="actions"><button class="btn" id="rlNew">+ Постоянная задача</button><button class="btn ghost" id="rlX">Закрыть</button></div>`);
+  document.querySelector('.modal').classList.add('wide');
+  $('rlX').onclick = closeModal;
+  $('rlNew').onclick = () => { openNewTask(S.f.client); $('ntf').value = 'ежемесячно'; $('ntf').onchange(); };
+  document.querySelectorAll('[data-redit]').forEach(b => b.onclick = () => openNewTask('', list.find(r => r.id === b.dataset.redit)));
+  document.querySelectorAll('[data-ract]').forEach(b => b.onclick = async () => {
+    const r = list.find(x => x.id === b.dataset.ract);
+    const res = await act('recur.save', { id: r.id, onlyActive: true, active: !r.active }, b);
+    if (res) { toast(r.active ? 'Остановлена: новые задачи не создаются' : 'Возобновлена' + (res.recur.created ? '. Задач в этом месяце: ' + res.recur.created : '')); openRecurList(); }
+  });
 }
 
 

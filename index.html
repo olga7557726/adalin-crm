@@ -141,11 +141,28 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .fstep { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted2); white-space: nowrap; }
 .fstep.on { background: var(--accent-weak); border-color: var(--accent-weak); color: var(--accent); }
 .fset { padding: 4px 6px; font-size: 12px; }
-.fgrid td { vertical-align: top; }
 .klim { display: flex; gap: 8px; align-items: center; } .db .klim input[type=text] { flex: 1; width: auto; } .db .klim label, .klim label { display: flex; gap: 4px; align-items: center; margin: 0; white-space: nowrap; font-size: 12px; }
-.fcell { border-radius: 10px; padding: 4px; margin-bottom: 4px; min-width: 185px; }
-.fcell .fset { width: 100%; border: 0; background: transparent; font-weight: 600; color: inherit; }
-.fcell .sub { padding: 0 6px; }
+.fgrid { border-collapse: collapse; font-size: 13px; }
+.fgrid th, .fgrid td { border-bottom: 1px solid var(--line); padding: 3px 4px; text-align: center; white-space: nowrap; }
+.fgrid th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--head); position: sticky; top: 0; }
+.fgrid th .sub { font-weight: 400; font-size: 11px; }
+.fgrid .fcl { text-align: left; max-width: 220px; overflow: hidden; text-overflow: ellipsis; padding-left: 10px; }
+.fgrid tbody tr:hover { background: var(--soft); }
+.fc { display: inline-block; min-width: 54px; border: 0; border-radius: 6px; padding: 2px 6px; font: 600 12px/18px inherit; font-family: inherit; cursor: pointer; }
+.flegend .fc { cursor: default; min-width: 0; margin-left: 8px; }
+.flegend { margin: 0 0 8px; color: var(--muted); }
+.fnone { color: var(--muted2); }
+.fbar .fper { min-width: 150px; text-align: center; }
+.fmenu { position: absolute; z-index: 40; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.15); padding: 6px; width: 220px; }
+.fmenu .sub { padding: 2px 6px 6px; }
+.fmenu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 6px; font: inherit; cursor: pointer; }
+.fmenu button:hover { background: var(--hover); } .fmenu button.on { font-weight: 600; color: var(--accent); } .fmenu button.ghost { color: var(--muted); border-top: 1px solid var(--line); border-radius: 0; margin-top: 4px; }
+@media print {
+  .side, .mnav, .top, .testbar, .viewbar, .toolbar, .fhint, .toast, .fmenu { display: none !important; }
+  .app { display: block; } .content { padding: 0; max-width: none; } .panel { box-shadow: none; border: 0; }
+  .fgrid { font-size: 10px; } .fgrid th { position: static; } .fc { min-width: 36px; padding: 0 3px; }
+  .fgrid td, .fgrid th, .fc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 .fs-need { background: var(--hover); } .fs-over { background: var(--danger-weak); color: var(--danger); }
 .fs-prep { background: var(--warn-weak); color: var(--warn); } .fs-sent { background: var(--accent-weak); color: var(--accent); }
 .fs-done { background: var(--ok-weak); color: var(--ok); }
@@ -813,9 +830,9 @@ function openRecurList() {
 }
 
 
-// ===================== ОТЧЁТНОСТЬ В ОРГАНЫ (v4.4, таблица v4.5) =====================
+// ===================== ОТЧЁТНОСТЬ В ОРГАНЫ (v4.4, компактная таблица v4.5) =====================
 // Отчёт — задача со сроком подачи. Шаги: требуется подготовить → подготовлено → отправлено → принято → оплачено.
-// Таблица за месяц подачи: строки — клиенты, колонки — отчёты месяца, в ячейке статус.
+// Вкладки «Квартал» / «Месяц» / «Год» — по периоду, за который отчёт. Строки — клиенты, колонки — отчёты, в ячейке — цветная отметка статуса.
 const F_ORDER = ['', 'подготовлен', 'отправлен', 'принят', 'оплачен'];
 const F_LABEL = { '': 'требуется подготовить', 'подготовлен': 'подготовлено', 'отправлен': 'отправлено', 'принят': 'принято', 'оплачен': 'оплачено' };
 const fSteps = f => F_ORDER.filter(x => x !== 'оплачен' || f.needsPay);
@@ -825,46 +842,81 @@ const fKind = t => {
   return k.charAt(0).toUpperCase() + k.slice(1);
 };
 // короткое название колонки, как в рабочей таблице Ольги; неизвестный вид — из названия задачи
-const F_SHORT = { FSZN_4F: '4-фонд', PN_AGENT: 'ПНА', NDS_M: 'НДС', NDS_Q: 'НДС', EAEU: 'НДС ЕАЭС', PROFIT: 'Прибыль', USN: 'УСН', PN_IP: 'Подоходный ИП', EN: 'Единый налог', FSZN_IP: 'ФСЗН ИП', BGS_PAY: 'Белгосстрах', BGS_YEAR: 'Белгосстрах год', NEDV_DECL: 'Недвижимость', NEDV_PAY: 'Недвижимость', TRANS_ADV: 'Транспортный', TRANS_YEAR: 'Транспортный' };
+const F_SHORT = { FSZN_4F: '4-фонд', PU3: 'ПУ-3', PN_AGENT: 'ПНА', NDS_M: 'НДС', NDS_Q: 'НДС', EAEU: 'НДС ЕАЭС', PROFIT: 'Прибыль', USN: 'УСН', PN_IP: 'Подоходный ИП', EN: 'Единый налог', FSZN_IP: 'ФСЗН ИП', BGS_PAY: 'Белгосстрах', BGS_YEAR: 'Белгосстрах', NEDV_DECL: 'Недвижимость', NEDV_PAY: 'Недвижимость', TRANS_ADV: 'Транспортный', TRANS_YEAR: 'Транспортный' };
+const F_ORDER_COLS = ['4-фонд', 'ПУ-3', 'ПНА', 'НДС', 'НДС ЕАЭС', 'Прибыль', 'УСН', 'Единый налог', 'Подоходный ИП', 'Белгосстрах', 'Недвижимость', 'Транспортный'];
 const fCol = t => F_SHORT[t.rule] || fKind(t);
-// цвет ячейки: красный — срок близко или прошёл, жёлтый — подготовлено, синий — отправлено / принято, зелёный — всё сделано
+// цвет и короткая отметка: красный — срок через 3 дня или прошёл, жёлтый — подготовлено, синий — отправлено / принято, зелёный — всё сделано
 const fCls = (f, today) => f.finished ? 'fs-done' : fUrgent(f, today) ? 'fs-over' : f.status === 'подготовлен' ? 'fs-prep' : f.status ? 'fs-sent' : 'fs-need';
+const fMark = f => f.finished ? '✓' : { '': 'нужно', 'подготовлен': 'подг.', 'отправлен': 'отпр.', 'принят': 'принят' }[f.status] || f.status;
+// вид периода по метке «Период обязательства»: «сентябрь 2026», «III квартал 2026», «2026 год»
+const fPerKind = l => /квартал/.test(l) ? 'q' : /год$/.test(l) ? 'y' : 'm';
+const fPerTs = l => { const m = String(l).match(/(\d{4})/), y = m ? Number(m[1]) : 0;
+  if (/квартал/.test(l)) return y * 12 + ['I', 'II', 'III', 'IV'].indexOf(l.split(' ')[0]) * 3;
+  if (/год$/.test(l)) return y * 12;
+  return y * 12 + MONTHS_RU.indexOf(l.split(' ')[0]); };
+const MONTHS_RU = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 function vFilings() {
   const d = S.data, mgr = d.role === 'руководитель', base = parseD(d.today), today = base.getTime();
-  const f = S.ff || (S.ff = { emp: '', off: 0 });
-  const first = new Date(base.getFullYear(), base.getMonth() + (f.off || 0), 1), y = first.getFullYear(), m = first.getMonth();
-  const label = first.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
-  let all = d.tasks.filter(t => { if (!t.filing || !t.filing.dts) return false; const x = new Date(t.filing.dts); return x.getFullYear() === y && x.getMonth() === m; });
+  const f = S.ff || (S.ff = { emp: '', tab: 'q', per: {} });
+  let all = d.tasks.filter(t => t.filing && t.filing.obl);
   if (f.emp) all = all.filter(t => t.employee === f.emp);
-  const kinds = [...new Set(all.map(fCol))].sort((a, b) => a.localeCompare(b, 'ru'));
-  const clients = [...new Set(all.map(t => t.client))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
-  const cell = t => {
-    const fl = t.filing, opts = fSteps(fl).map(s => `<option value="${esc(s)}" ${!(fl.finished && !fl.status) && s === fl.status ? 'selected' : ''}>${esc(F_LABEL[s])}</option>`).join('');
-    return `<div class="fcell ${fCls(fl, today)}"><select class="fset" data-fset="${esc(t.id)}" aria-label="Статус: ${esc(t.client)}, ${esc(fKind(t))}">
-      ${fl.finished && !fl.status ? '<option value="" selected disabled>сдано (задача закрыта)</option>' : ''}${opts}</select>
-      <div class="sub click" data-task="${esc(t.id)}">до ${esc(fl.date.slice(0, 5))}${mgr && !f.emp ? ' · ' + esc(String(t.employee || '').split(' ')[0]) : ''}</div></div>`;
-  };
-  const done = all.filter(t => t.filing.finished).length, over = all.filter(t => fUrgent(t.filing, today)).length;
+  const tabs = [['q', 'Квартал'], ['m', 'Месяц'], ['y', 'Год']];
+  // периоды вкладки по порядку; по умолчанию — последний, по которому уже идёт подача (срок подачи не позже чем через 45 дней)
+  const pers = [...new Set(all.filter(t => fPerKind(t.filing.obl) === f.tab).map(t => t.filing.obl))].sort((a, b) => fPerTs(a) - fPerTs(b));
+  if (!pers.includes(f.per[f.tab])) {
+    const due = pers.filter(p => all.some(t => t.filing.obl === p && t.filing.dts && t.filing.dts <= today + 45 * 86400000));
+    f.per[f.tab] = due.length ? due[due.length - 1] : pers[0] || '';
+  }
+  const per = f.per[f.tab], pi = pers.indexOf(per);
+  const list = all.filter(t => t.filing.obl === per);
+  const kinds = [...new Set(list.map(fCol))].sort((a, b) => ((F_ORDER_COLS.indexOf(a) + 1) || 99) - ((F_ORDER_COLS.indexOf(b) + 1) || 99) || a.localeCompare(b, 'ru'));
+  const clients = [...new Set(list.map(t => t.client))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
+  const dueOf = k => { const ds = [...new Set(list.filter(t => fCol(t) === k).map(t => t.filing.date.slice(0, 5)))]; return ds.length === 1 ? 'до ' + ds[0] : ''; };
+  const cell = t => `<button class="fc ${fCls(t.filing, today)}" data-fm="${esc(t.id)}" title="${esc(fKind(t) + ': ' + (t.filing.finished && !t.filing.status ? 'сдано (задача закрыта)' : F_LABEL[t.filing.status]) + ', срок подачи ' + t.filing.date)}">${esc(fMark(t.filing))}</button>`;
+  const cnt = s => list.filter(s).length;
   $('content').innerHTML = `
-    <div class="toolbar">
-      <button class="btn ghost sm" id="fPrev" aria-label="Предыдущий месяц">‹</button><b style="min-width:130px;text-align:center">${esc(label)}</b><button class="btn ghost sm" id="fNext" aria-label="Следующий месяц">›</button>
+    <div class="toolbar fbar">
+      <div class="chips" id="ftab">${tabs.map(x => `<button data-t="${x[0]}" class="${x[0] === f.tab ? 'on' : ''}">${x[1]}</button>`).join('')}</div>
+      <button class="btn ghost sm" id="fPrev" ${pi > 0 ? '' : 'disabled'} aria-label="Предыдущий период">‹</button><b class="fper">${esc(per || '—')}</b><button class="btn ghost sm" id="fNext" ${pi >= 0 && pi < pers.length - 1 ? '' : 'disabled'} aria-label="Следующий период">›</button>
       ${mgr ? `<select id="ffe"><option value="">Все сотрудники</option>${(d.assignees || d.employees).map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
-      <span class="grow"></span><span class="muted small">Сдаётся в этом месяце: ${all.length} · завершено ${done}${over ? ` · <b style="color:var(--danger)">срок близко ${over}</b>` : ''}</span>
+      <span class="grow"></span><button class="btn ghost sm" id="fPrint">Печать</button>
     </div>
-    <div class="panel twrap">${all.length ? `<table class="tbl fgrid"><thead><tr><th>Клиент</th>${kinds.map(k => `<th title="${esc(fKind(all.find(t => fCol(t) === k)))}">${esc(k)}</th>`).join('')}</tr></thead><tbody>
-      ${clients.map(c => `<tr><td class="nm" data-l="Клиент"><b>${esc(c)}</b></td>${kinds.map(k => {
-        const ts = all.filter(t => t.client === c && fCol(t) === k);
-        return `<td data-l="${esc(k)}">${ts.length ? ts.map(cell).join('') : '<span class="muted">—</span>'}</td>`; }).join('')}</tr>`).join('')}
-      </tbody></table>` : '<div class="empty">В этом месяце отчётов к подаче нет</div>'}</div>
-    <p class="muted small">Статус меняйте прямо в ячейке. «Отправлено» закрывает задачу, после «оплачено» клиенту не напоминаем об оплате. Нажмите на срок — откроется задача.</p>`;
-  $('fPrev').onclick = () => { f.off = (f.off || 0) - 1; vFilings(); };
-  $('fNext').onclick = () => { f.off = (f.off || 0) + 1; vFilings(); };
+    <div class="flegend small"><span class="fc fs-need">нужно</span> требуется подготовить <span class="fc fs-over">нужно</span> срок близко <span class="fc fs-prep">подг.</span> подготовлено <span class="fc fs-sent">отпр.</span> отправлено / принято <span class="fc fs-done">✓</span> сдано · всего ${list.length}, сдано ${cnt(t => t.filing.finished)}</div>
+    <div class="panel twrap fprint">${list.length ? `<table class="fgrid"><thead><tr><th class="fcl">Клиент · ${esc(per)}</th>${kinds.map(k => `<th>${esc(k)}<div class="sub">${esc(dueOf(k))}</div></th>`).join('')}</tr></thead><tbody>
+      ${clients.map(c => `<tr><td class="fcl" title="${esc(c)}">${esc(c)}</td>${kinds.map(k => {
+        const ts = list.filter(t => t.client === c && fCol(t) === k);
+        return `<td>${ts.length ? ts.map(cell).join('') : '<span class="fnone">—</span>'}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table>` : '<div class="empty">За этот период отчётов нет</div>'}</div>
+    <p class="muted small fhint">Нажмите на отметку, чтобы сменить статус. «Отправлено» закрывает задачу, после «оплачено» клиенту не напоминаем об оплате.</p>`;
+  $('ftab').onclick = e => { const b = e.target.closest('button'); if (b) { f.tab = b.dataset.t; vFilings(); } };
+  $('fPrev').onclick = () => { f.per[f.tab] = pers[pi - 1]; vFilings(); };
+  $('fNext').onclick = () => { f.per[f.tab] = pers[pi + 1]; vFilings(); };
   if ($('ffe')) $('ffe').onchange = e => { f.emp = e.target.value; vFilings(); };
-  $('content').querySelectorAll('[data-fset]').forEach(el => el.onchange = async () => {
-    const r = await act('filing.set', { id: el.dataset.fset, status: el.value }, null);
-    if (r) toast(el.value === 'отправлен' ? 'Отправлено — задача закрыта' : 'Статус: ' + F_LABEL[el.value]);
-  });
-  bindTaskRows($('content'));
+  $('fPrint').onclick = () => window.print();
+  $('content').querySelectorAll('[data-fm]').forEach(b => b.onclick = e => { e.stopPropagation(); fMenu(b, list.find(t => t.id === b.dataset.fm)); });
+}
+// маленькое меню статуса у ячейки
+function fMenu(btn, t) {
+  document.querySelectorAll('.fmenu').forEach(m => m.remove());
+  const r = btn.getBoundingClientRect(), m = document.createElement('div');
+  m.className = 'fmenu';
+  m.innerHTML = `<div class="sub">${esc(t.client)} · ${esc(fCol(t))} · до ${esc(t.filing.date)}</div>` +
+    fSteps(t.filing).map(s => `<button data-s="${esc(s)}" class="${s === t.filing.status && !(t.filing.finished && !s) ? 'on' : ''}">${esc(F_LABEL[s])}</button>`).join('') +
+    `<button data-open="1" class="ghost">Открыть задачу</button>`;
+  m.style.top = (window.scrollY + r.bottom + 4) + 'px';
+  m.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - 230)) + 'px';
+  document.body.appendChild(m);
+  const close = () => { m.remove(); document.removeEventListener('click', outside, true); };
+  const outside = e => { if (!m.contains(e.target)) close(); };
+  setTimeout(() => document.addEventListener('click', outside, true), 0);
+  m.onclick = async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    close();
+    if (b.dataset.open) return openTask(t.id);
+    const st = b.dataset.s;
+    const res = await act('filing.set', { id: t.id, status: st }, null);
+    if (res) toast(st === 'отправлен' ? 'Отправлено — задача закрыта' : 'Статус: ' + F_LABEL[st]);
+  };
 }
 
 // ===================== ЗАРПЛАТНАЯ ДОСКА (v4.4) =====================

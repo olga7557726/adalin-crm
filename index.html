@@ -141,6 +141,15 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .fstep { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted2); white-space: nowrap; }
 .fstep.on { background: var(--accent-weak); border-color: var(--accent-weak); color: var(--accent); }
 .fset { padding: 4px 6px; font-size: 12px; }
+.fgrid td { vertical-align: top; }
+.klim { display: flex; gap: 8px; align-items: center; } .db .klim input[type=text] { flex: 1; width: auto; } .db .klim label, .klim label { display: flex; gap: 4px; align-items: center; margin: 0; white-space: nowrap; font-size: 12px; }
+.fcell { border-radius: 10px; padding: 4px; margin-bottom: 4px; min-width: 185px; }
+.fcell .fset { width: 100%; border: 0; background: transparent; font-weight: 600; color: inherit; }
+.fcell .sub { padding: 0 6px; }
+.fs-need { background: var(--hover); } .fs-over { background: var(--danger-weak); color: var(--danger); }
+.fs-prep { background: var(--warn-weak); color: var(--warn); } .fs-sent { background: var(--accent-weak); color: var(--accent); }
+.fs-done { background: var(--ok-weak); color: var(--ok); }
+
 .pcell { line-height: 1.35; } .pcell.click { cursor: pointer; } .pcell .badge { margin-top: 3px; }
 .pcal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .phead { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; }
@@ -804,61 +813,57 @@ function openRecurList() {
 }
 
 
-// ===================== ОТЧЁТНОСТЬ В ОРГАНЫ (v4.4) =====================
-// Отчёт — задача со сроком подачи. Шаги: подготовлен → отправлен → принят инспектором → налог оплачен.
+// ===================== ОТЧЁТНОСТЬ В ОРГАНЫ (v4.4, таблица v4.5) =====================
+// Отчёт — задача со сроком подачи. Шаги: требуется подготовить → подготовлено → отправлено → принято → оплачено.
+// Таблица за месяц подачи: строки — клиенты, колонки — отчёты месяца, в ячейке статус.
 const F_ORDER = ['', 'подготовлен', 'отправлен', 'принят', 'оплачен'];
-const F_LABEL = { '': 'не подготовлен', 'подготовлен': 'подготовлен', 'отправлен': 'отправлен', 'принят': 'принят инспектором', 'оплачен': 'налог оплачен' };
+const F_LABEL = { '': 'требуется подготовить', 'подготовлен': 'подготовлено', 'отправлен': 'отправлено', 'принят': 'принято', 'оплачен': 'оплачено' };
 const fSteps = f => F_ORDER.filter(x => x !== 'оплачен' || f.needsPay);
-const fNext = f => { const st = fSteps(f); return st[st.indexOf(f.status) + 1] || null; };
-const fUrgent = (f, today) => (f.status === '' || f.status === 'подготовлен') && f.dts && f.dts <= today + 3 * 86400000;
+const fUrgent = (f, today) => !f.finished && (f.status === '' || f.status === 'подготовлен') && f.dts && f.dts <= today + 3 * 86400000;
 const fKind = t => {
   const k = String(t.title || '').replace(/\s+(за|на)\s+.*$/, '').replace(/^Подготовить и подать |^Подготовить |^Подать /, '').replace(/^декларацию/, 'декларация');
   return k.charAt(0).toUpperCase() + k.slice(1);
 };
-function fBadge(f, today) {
-  const cls = f.finished ? 'b-done' : f.status === 'принят' || f.status === 'отправлен' ? 'b-work' : fUrgent(f, today) ? 'b-over' : f.status === 'подготовлен' ? 'b-wait' : '';
-  return `<span class="badge ${cls}">${esc(F_LABEL[f.status])}${!f.needsPay && f.status === 'принят' ? ' · платить нечего' : ''}</span>`;
-}
+// короткое название колонки, как в рабочей таблице Ольги; неизвестный вид — из названия задачи
+const F_SHORT = { FSZN_4F: '4-фонд', PN_AGENT: 'ПНА', NDS_M: 'НДС', NDS_Q: 'НДС', EAEU: 'НДС ЕАЭС', PROFIT: 'Прибыль', USN: 'УСН', PN_IP: 'Подоходный ИП', EN: 'Единый налог', FSZN_IP: 'ФСЗН ИП', BGS_PAY: 'Белгосстрах', BGS_YEAR: 'Белгосстрах год', NEDV_DECL: 'Недвижимость', NEDV_PAY: 'Недвижимость', TRANS_ADV: 'Транспортный', TRANS_YEAR: 'Транспортный' };
+const fCol = t => F_SHORT[t.rule] || fKind(t);
+// цвет ячейки: красный — срок близко или прошёл, жёлтый — подготовлено, синий — отправлено / принято, зелёный — всё сделано
+const fCls = (f, today) => f.finished ? 'fs-done' : fUrgent(f, today) ? 'fs-over' : f.status === 'подготовлен' ? 'fs-prep' : f.status ? 'fs-sent' : 'fs-need';
 function vFilings() {
-  const d = S.data, mgr = d.role === 'руководитель', today = parseD(d.today).getTime();
-  const f = S.ff || (S.ff = { st: 'active', period: '', kind: '', emp: '' });
-  let all = d.tasks.filter(t => t.filing);
+  const d = S.data, mgr = d.role === 'руководитель', base = parseD(d.today), today = base.getTime();
+  const f = S.ff || (S.ff = { emp: '', off: 0 });
+  const first = new Date(base.getFullYear(), base.getMonth() + (f.off || 0), 1), y = first.getFullYear(), m = first.getMonth();
+  const label = first.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
+  let all = d.tasks.filter(t => { if (!t.filing || !t.filing.dts) return false; const x = new Date(t.filing.dts); return x.getFullYear() === y && x.getMonth() === m; });
   if (f.emp) all = all.filter(t => t.employee === f.emp);
-  const periods = [...new Set(all.map(t => t.period))], kinds = [...new Set(all.map(fKind))].sort();
-  if (f.period) all = all.filter(t => t.period === f.period);
-  if (f.kind) all = all.filter(t => fKind(t) === f.kind);
-  const by = { active: t => !t.filing.finished, urgent: t => fUrgent(t.filing, today), none: t => t.filing.status === '',
-    'подготовлен': t => t.filing.status === 'подготовлен', 'отправлен': t => t.filing.status === 'отправлен', 'принят': t => t.filing.status === 'принят' && t.filing.needsPay,
-    done: t => t.filing.finished, all: () => true };
-  const chips = [['active', 'В работе'], ['urgent', 'Срок близко'], ['none', 'Не подготовлены'], ['подготовлен', 'Подготовлены'], ['отправлен', 'Отправлены'], ['принят', 'Принят — ждём оплату'], ['done', 'Завершены'], ['all', 'Все']];
-  const list = all.filter(by[f.st] || by.active).sort((a, b) => a.filing.dts - b.filing.dts);
-  const steps = t => fSteps(t.filing).slice(1).map(s => `<span class="fstep ${t.filing.dates[s] ? 'on' : ''}" title="${esc(F_LABEL[s])}">${esc(F_LABEL[s].split(' ')[0])}${t.filing.dates[s] ? ' ' + esc(t.filing.dates[s].slice(0, 5)) : ''}</span>`).join('');
+  const kinds = [...new Set(all.map(fCol))].sort((a, b) => a.localeCompare(b, 'ru'));
+  const clients = [...new Set(all.map(t => t.client))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
+  const cell = t => {
+    const fl = t.filing, opts = fSteps(fl).map(s => `<option value="${esc(s)}" ${!(fl.finished && !fl.status) && s === fl.status ? 'selected' : ''}>${esc(F_LABEL[s])}</option>`).join('');
+    return `<div class="fcell ${fCls(fl, today)}"><select class="fset" data-fset="${esc(t.id)}" aria-label="Статус: ${esc(t.client)}, ${esc(fKind(t))}">
+      ${fl.finished && !fl.status ? '<option value="" selected disabled>сдано (задача закрыта)</option>' : ''}${opts}</select>
+      <div class="sub click" data-task="${esc(t.id)}">до ${esc(fl.date.slice(0, 5))}${mgr && !f.emp ? ' · ' + esc(String(t.employee || '').split(' ')[0]) : ''}</div></div>`;
+  };
+  const done = all.filter(t => t.filing.finished).length, over = all.filter(t => fUrgent(t.filing, today)).length;
   $('content').innerHTML = `
-    <p class="muted" style="margin-top:0">Налоговые декларации и отчёты в ФСЗН и Белгосстрах. Отметка «отправлен» закрывает задачу, дальше статус ведётся здесь. После «налог оплачен» клиенту больше не напоминаем об оплате.</p>
     <div class="toolbar">
+      <button class="btn ghost sm" id="fPrev" aria-label="Предыдущий месяц">‹</button><b style="min-width:130px;text-align:center">${esc(label)}</b><button class="btn ghost sm" id="fNext" aria-label="Следующий месяц">›</button>
       ${mgr ? `<select id="ffe"><option value="">Все сотрудники</option>${(d.assignees || d.employees).map(e => `<option ${e === f.emp ? 'selected' : ''}>${esc(e)}</option>`).join('')}</select>` : ''}
-      <select id="ffp"><option value="">Все периоды</option>${periods.map(p => `<option ${p === f.period ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
-      <select id="ffk"><option value="">Все отчёты</option>${kinds.map(k => `<option ${k === f.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>
+      <span class="grow"></span><span class="muted small">Сдаётся в этом месяце: ${all.length} · завершено ${done}${over ? ` · <b style="color:var(--danger)">срок близко ${over}</b>` : ''}</span>
     </div>
-    <div class="toolbar"><div class="chips" id="ffs">${chips.map(c => `<button data-s="${c[0]}" class="${c[0] === f.st ? 'on' : ''}">${c[1]} ${all.filter(by[c[0]]).length}</button>`).join('')}</div></div>
-    <div class="panel twrap">${list.length ? `<table class="tbl"><thead><tr><th>Клиент</th><th>Отчёт</th><th>Срок подачи</th><th>Статус</th><th>Шаги</th>${mgr ? '<th>Исполнитель</th>' : ''}<th></th></tr></thead><tbody>
-      ${list.map(t => { const n = fNext(t.filing); return `<tr class="click" data-task="${esc(t.id)}">
-        <td class="nm" data-l="Клиент"><b>${esc(t.client)}</b></td>
-        <td>${esc(fKind(t))}<div class="sub">${esc(t.period)}</div></td>
-        <td data-l="Срок подачи">${esc(t.filing.date)}${t.payDate ? `<div class="sub">уплата ${esc(t.payDate)}</div>` : ''}</td>
-        <td data-l="Статус">${fBadge(t.filing, today)}</td>
-        <td data-l="Шаги"><div class="fsteps">${steps(t)}</div></td>
-        ${mgr ? `<td data-l="Исполнитель">${esc(t.employee)}</td>` : ''}
-        <td><div class="acts">${n ? `<button class="btn sm" data-fnext="${esc(t.id)}" data-st="${esc(n)}">${esc(F_LABEL[n][0].toUpperCase() + F_LABEL[n].slice(1))}</button>` : ''}
-          <select class="fset" data-fset="${esc(t.id)}" aria-label="Изменить статус">${fSteps(t.filing).map(s => `<option value="${esc(s)}" ${s === t.filing.status ? 'selected' : ''}>${esc(F_LABEL[s])}</option>`).join('')}</select></div></td></tr>`; }).join('')}
-      </tbody></table>` : '<div class="empty">Отчётов по выбранным условиям нет</div>'}</div>`;
+    <div class="panel twrap">${all.length ? `<table class="tbl fgrid"><thead><tr><th>Клиент</th>${kinds.map(k => `<th title="${esc(fKind(all.find(t => fCol(t) === k)))}">${esc(k)}</th>`).join('')}</tr></thead><tbody>
+      ${clients.map(c => `<tr><td class="nm" data-l="Клиент"><b>${esc(c)}</b></td>${kinds.map(k => {
+        const ts = all.filter(t => t.client === c && fCol(t) === k);
+        return `<td data-l="${esc(k)}">${ts.length ? ts.map(cell).join('') : '<span class="muted">—</span>'}</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table>` : '<div class="empty">В этом месяце отчётов к подаче нет</div>'}</div>
+    <p class="muted small">Статус меняйте прямо в ячейке. «Отправлено» закрывает задачу, после «оплачено» клиенту не напоминаем об оплате. Нажмите на срок — откроется задача.</p>`;
+  $('fPrev').onclick = () => { f.off = (f.off || 0) - 1; vFilings(); };
+  $('fNext').onclick = () => { f.off = (f.off || 0) + 1; vFilings(); };
   if ($('ffe')) $('ffe').onchange = e => { f.emp = e.target.value; vFilings(); };
-  $('ffp').onchange = e => { f.period = e.target.value; vFilings(); };
-  $('ffk').onchange = e => { f.kind = e.target.value; vFilings(); };
-  $('ffs').onclick = e => { const b = e.target.closest('button'); if (b) { f.st = b.dataset.s; vFilings(); } };
-  const setSt = async (id, st, el) => { const r = await act('filing.set', { id, status: st }, el); if (r) toast(st === 'отправлен' ? 'Отмечено «отправлен», задача закрыта' : 'Статус: ' + F_LABEL[st]); };
-  $('content').querySelectorAll('[data-fnext]').forEach(b => b.onclick = () => setSt(b.dataset.fnext, b.dataset.st, b));
-  $('content').querySelectorAll('[data-fset]').forEach(el => el.onchange = () => setSt(el.dataset.fset, el.value, null));
+  $('content').querySelectorAll('[data-fset]').forEach(el => el.onchange = async () => {
+    const r = await act('filing.set', { id: el.dataset.fset, status: el.value }, null);
+    if (r) toast(el.value === 'отправлен' ? 'Отправлено — задача закрыта' : 'Статус: ' + F_LABEL[el.value]);
+  });
   bindTaskRows($('content'));
 }
 
@@ -1015,6 +1020,11 @@ function editClient(code, prefill, leadId, kPrefill) { // prefill / leadId / kPr
       <div class="actions"><button class="btn" id="csave">Сохранить</button><button class="btn ghost" id="ccancel">Отмена</button></div></div>`, null, true);
   $('dx').onclick = closeDrawer;
   applyIpForm();
+  // v4.5: «без ограничений» — значение в поле лимита, поле только для чтения
+  $('drawer').querySelectorAll('[data-kun]').forEach(cb => cb.onchange = () => {
+    const inp = $('drawer').querySelector(`[data-kf="${CSS.escape(cb.dataset.kun)}"]`);
+    inp.value = cb.checked ? 'без ограничений' : ''; inp.readOnly = cb.checked; if (!cb.checked) inp.focus();
+  });
   const tSel = $('drawer').querySelector('[data-cf="Тип"]');
   if (tSel) tSel.addEventListener('change', applyIpForm);
   $('ccancel').onclick = () => code ? openClient(code) : closeDrawer();
@@ -1037,7 +1047,7 @@ function editClient(code, prefill, leadId, kPrefill) { // prefill / leadId / kPr
 }
 
 // ===================== ДОГОВОР (v3.2) =====================
-const K_GROUPS = ['Договор', 'Заказчик', 'Реквизиты', 'Условия', 'Блоки', 'Цена'];
+const K_GROUPS = ['Договор', 'Заказчик', 'Реквизиты', 'Условия', 'Тариф', 'Блоки', 'Цена'];
 function saveB64(b64, fileName, type) {
   const bin = atob(b64), arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -1053,7 +1063,7 @@ async function downloadContract(code, btn) {
   } catch (e) { toast(e.message, true); }
   finally { btn.disabled = false; btn.textContent = old; }
 }
-const K_TITLES = { 'Договор': 'Договор', 'Заказчик': 'Заказчик в договоре', 'Реквизиты': 'Реквизиты', 'Условия': 'Условия обслуживания', 'Блоки': 'Блоки услуг', 'Цена': 'Цена' };
+const K_TITLES = { 'Договор': 'Договор', 'Заказчик': 'Заказчик в договоре', 'Реквизиты': 'Реквизиты', 'Условия': 'Условия обслуживания', 'Тариф': 'Тариф и объёмы', 'Блоки': 'Блоки услуг', 'Цена': 'Цена' };
 // v3.3: данные договора — часть карточки (видит и правит только руководитель)
 function contractCardHtml(code) {
   const d = S.data, F = d.contractFields || [];
@@ -1069,6 +1079,8 @@ function contractFormHtml(code, kPre) {
   const input = f => {
     const v = k[f.name] == null ? '' : k[f.name];
     if (f.options) return `<select data-kf="${esc(f.name)}"><option value=""></option>${f.options.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    // v4.5: лимит тарифа — число или галочка «без ограничений»
+    if (f.limit) { const un = low(v) === 'без ограничений'; return `<div class="klim"><input type="text" inputmode="numeric" data-kf="${esc(f.name)}" value="${esc(v)}" ${un ? 'readonly' : ''}><label><input type="checkbox" data-kun="${esc(f.name)}" ${un ? 'checked' : ''}> без ограничений</label></div>`; }
     return `<input type="text" data-kf="${esc(f.name)}" value="${esc(f.number && v !== '' && /BYN/.test(f.name) ? money(v) : v)}" placeholder="${esc(f.date ? 'ДД.ММ.ГГГГ' : (f.hint || ''))}">`;
   };
   // у ИП свой набор полей: поля ООО прячутся, когда в «Тип» выбран ИП (applyIpForm)
